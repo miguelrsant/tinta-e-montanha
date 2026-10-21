@@ -1,0 +1,73 @@
+/* A fábula 塞翁失马 (Sai Weng perde o cavalo), do Huainanzi, séc. II a.C.
+   `title` usa *asteriscos* para marcar a palavra em itálico âmbar. */
+export const STORY = [
+  {
+    eyebrow: 'Fábula · 塞翁失马',
+    title: 'O cavalo do velho da *fronteira*',
+    body: 'Uma história chinesa de dois mil anos sobre sorte, azar e tudo aquilo que ainda não sabemos.',
+    caption: ['Huainanzi', 'séc. II a.C.'],
+    scene: 0,
+    cover: true,
+  },
+  {
+    eyebrow: 'I · A fronteira',
+    title: 'Na fronteira do norte vivia um velho cujo único tesouro era um *cavalo*.',
+    body: 'Ele o criava com paciência. Os vizinhos diziam que não havia animal mais bonito em toda a região.',
+    caption: ['塞翁', 'o velho da fronteira'],
+    scene: 0,
+  },
+  {
+    eyebrow: 'II · A fuga',
+    title: 'Certa manhã, o cavalo fugiu para as terras dos *nômades*.',
+    verdict: 'Que azar!',
+    reply: 'Quem sabe se isso não é uma *bênção*?',
+    caption: ['失马', 'o cavalo perdido'],
+    scene: 1,
+  },
+  {
+    eyebrow: 'III · O retorno',
+    title: 'Meses depois, o cavalo voltou trazendo um *garanhão* selvagem.',
+    verdict: 'Que sorte!',
+    reply: 'Quem sabe se isso não é uma *desgraça*?',
+    caption: ['骏马', 'o garanhão do norte'],
+    scene: 2,
+  },
+  {
+    eyebrow: 'IV · A queda',
+    title: 'O filho adorava montar o garanhão. Um dia caiu e *quebrou* a perna.',
+    verdict: 'Que desgraça!',
+    reply: 'Quem sabe se isso não é uma *bênção*?',
+    caption: ['秋', 'outono'],
+    scene: 3,
+  },
+  {
+    eyebrow: 'V · A guerra',
+    title: 'Um ano depois, os nômades *invadiram* a fronteira.',
+    body: 'Todos os jovens fortes da aldeia foram chamados para lutar.',
+    caption: ['胡人', 'os cavaleiros do norte'],
+    scene: 4,
+  },
+  {
+    eyebrow: 'VI · O silêncio',
+    title: 'Dos que partiram, nove em cada dez não *voltaram*.',
+    body: 'A ponte da aldeia viu muitas despedidas e quase nenhum regresso.',
+    caption: ['十死其九', 'nove em cada dez'],
+    scene: 5,
+  },
+  {
+    eyebrow: 'VII · Pai e filho',
+    title: 'Por mancar, o filho não foi à guerra. Pai e filho seguiram *juntos*.',
+    verdict: 'Que sorte!',
+    reply: 'Quem *sabe*?',
+    caption: ['父子相保', 'pai e filho, a salvo'],
+    scene: 6,
+  },
+  {
+    eyebrow: 'VIII · A lição',
+    title: 'Sorte e azar se transformam um no outro, como as *estações*.',
+    body: 'Antes de chamar algo de desgraça ou de bênção, espere a história terminar. Quase sempre ainda estamos no meio dela.',
+    caption: ['塞翁失马，焉知非福', 'o velho perdeu o cavalo; quem sabe não foi sorte?'],
+    scene: 7,
+    final: true,
+  },
+];
