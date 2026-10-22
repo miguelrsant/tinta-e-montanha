@@ -73,7 +73,7 @@ export class Stage {
   }
 
   resize() {
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const dpr = Math.min(1.5, window.devicePixelRatio || 1);
     const w = Math.round(this.el.clientWidth * dpr), h = Math.round(this.el.clientHeight * dpr);
     if (this.el.width !== w || this.el.height !== h) { this.el.width = w; this.el.height = h; }
   }

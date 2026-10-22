@@ -92,8 +92,10 @@ export class Music {
   constructor() { this.ready = false; this.chapter = 0; this.listeners = new Set(); }
 
   async start(offline) {
-    if (this.ready) { await this.ac.resume(); return; }
-    const ac = (this.ac = offline || new (window.AudioContext || window.webkitAudioContext)());
+    if (this.ready) { await this.resume(); return; }
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    // latencyHint 'playback': buffers maiores, sem estalos quando a pintura pesa
+    const ac = (this.ac = offline || new Ctx({ latencyHint: 'playback' }));
     this.master = ac.createGain(); this.master.gain.value = 0;
     const comp = ac.createDynamicsCompressor();
     comp.threshold.value = -16; comp.ratio.value = 3; comp.attack.value = 0.01; comp.release.value = 0.25;
@@ -127,12 +129,59 @@ export class Music {
     this.ready = true;
     this.master.gain.setTargetAtTime(0.55, ac.currentTime, 0.8);
     this.applyArrangement(true);
-    if (!offline) this.timer = setInterval(() => this.schedule(), 25);
+    if (!offline) {
+      this.startClock();
+      this.keepAlive();
+      this.warmPlucks();
+    }
     this.gliss(this.next, 1, 0.5);
   }
 
+  // Relógio num Web Worker: não é atrasado pelo desenho da pintura nem
+  // (tanto) pelo navegador quando a aba fica em segundo plano
+  startClock() {
+    try {
+      const src = 'let id;onmessage=(e)=>{clearInterval(id);if(e.data>0)id=setInterval(()=>postMessage(0),e.data)}';
+      this.worker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+      this.worker.onmessage = () => this.schedule();
+      this.worker.postMessage(25);
+    } catch {
+      this.timer = setInterval(() => this.schedule(), 25);
+    }
+  }
+
+  // Se o navegador suspender o áudio (aba em segundo plano, fone desconectado,
+  // ligação no celular), retoma assim que possível
+  keepAlive() {
+    const revive = () => { if (!this.muted && this.ac.state !== 'running' && this.ac.state !== 'closed') this.resume(); };
+    this.ac.onstatechange = revive;
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) revive(); });
+    for (const ev of ['pointerdown', 'keydown', 'touchend']) window.addEventListener(ev, revive, { passive: true });
+  }
+
+  async resume() {
+    try { await this.ac.resume(); } catch { /* sem gesto do usuário ainda */ }
+    // depois de uma pausa, recomeça o compasso no tempo atual em vez de despejar notas atrasadas
+    if (this.next < this.ac.currentTime) this.next = this.ac.currentTime + 0.1;
+  }
+
+  // Pré-calcula as cordas do guzheng aos poucos, sem travar a tela
+  warmPlucks() {
+    const notes = [];
+    for (let m = 38; m <= 93; m++) if (PENTA.includes((m - 2) % 12) || [43, 55, 67, 61, 73].includes(m)) notes.push(m);
+    const step = () => {
+      const m = notes.shift();
+      if (m === undefined) return;
+      if (!this.plucks.has(m)) this.plucks.set(m, pluckBuffer(this.ac, mtof(m)));
+      setTimeout(step, 16);
+    };
+    setTimeout(step, 50);
+  }
+
   setMuted(m) {
+    this.muted = m;
     if (!this.ready) return;
+    if (!m) this.resume();
     this.master.gain.setTargetAtTime(m ? 0 : 0.55, this.ac.currentTime, 0.3);
   }
 
@@ -142,8 +191,12 @@ export class Music {
     if (!this.ready) return;
     const t = at ?? this.ac.currentTime + 0.05;
     this.applyArrangement(false, t);
-    this.gong(t, 0.5);
-    this.gliss(t + 0.1, i % 2 ? -1 : 1, 0.45);
+    // rolagem rápida não empilha gongos
+    if (!(t - (this.lastFx ?? -9) < 1.5)) {
+      this.lastFx = t;
+      this.gong(t, 0.5);
+      this.gliss(t + 0.1, i % 2 ? -1 : 1, 0.45);
+    }
   }
 
   get cfg() { return ARRANGEMENTS[Math.min(this.chapter, ARRANGEMENTS.length - 1)]; }
@@ -280,13 +333,23 @@ export class Music {
 
   /* ---------- sequenciador ---------- */
   schedule(until) {
-    const ahead = until ?? this.ac.currentTime + 0.18;
+    const now = this.ac.currentTime;
+    if (until === undefined && this.ac.state !== 'running') return;
+    // atrasou demais (aba congelada)? pula para o tempo atual em vez de tocar tudo de uma vez
+    if (until === undefined && this.next < now - 0.05) {
+      while (this.next < now + 0.05) this.advance();
+    }
+    const ahead = until ?? now + (document.hidden ? 1.5 : 0.5);
     while (this.next < ahead) {
       this.tick(this.next);
-      this.next += EIGHTH * (this.step % 2 ? 0.94 : 1.06); // leve balanço
-      this.step++;
-      if (this.step >= 16) { this.step = 0; this.unit = (this.unit + 1) % UNITS.length; }
+      this.advance();
     }
+  }
+
+  advance() {
+    this.next += EIGHTH * (this.step % 2 ? 0.94 : 1.06); // leve balanço
+    this.step++;
+    if (this.step >= 16) { this.step = 0; this.unit = (this.unit + 1) % UNITS.length; }
   }
 
   tick(t) {
