@@ -2,7 +2,7 @@
    e animada no palco com névoa, parallax, aves, cavalos e partículas. */
 import { Ink } from './ink.js';
 
-const { W, rng, R, layer, mountain, pavilion, house, bridge, rocks, waterfall, tinyTree, ink, leafInk, floweringTree, palm, farmhouse, araucaria, skyline } = Ink;
+const { W, rng, R, layer, mountain, pine, pavilion, house, bridge, rocks, waterfall, tinyTree, ink, leafInk, floweringTree, palm, farmhouse, araucaria, skyline } = Ink;
 
 function farRange(r, base, o = {}) {
   const L = layer(o.scale ?? 0.35);
@@ -57,6 +57,42 @@ function plantedHill(ctx, r, x0, x1, base, peaks, o = {}) {
 }
 
 export const SCENES = [
+  /* Capa · Do Fuji ao Pão de Açúcar: o pinheiro na falésia e o navio cruzando o mar */
+  {
+    id: 'capa', seed: 108, bg: ['#f2eee6', '#e7e1d5'],
+    sun: { x: 760, y: 205, r: 34, color: '#c9563f' },
+    water: { y: 690 },
+    birds: [{ n: 5, x: 520, y: 110, s: 0.9, speed: 18, dir: 1 }],
+    petals: 26, petalColor: SAKURA,
+    actors: [{ type: 'ship', path: [[590, 706], [780, 703]], dur: 80, s: 0.5 }],
+    build(r) {
+      const L0 = farRange(r, 600, { n: 8, hmax: 150, hmin: 70, alpha: 0.22, tone: 150 });
+      // o Fuji ao longe, na névoa: cone de lados côncavos com neve
+      const F = layer(0.5);
+      mountain(F.ctx, r, { x0: 280, x1: 1000, base: 640, peaks: [{ x: 640, h: 290, w: 220, k: 1.15 }], tone: 125, alpha: 0.42, texture: 0.3, dots: 0.02, rough: 10, fine: 4, ledge: 0, folds: 2, foot: 40, fade: 0.55, snow: true, snowLine: 0.32, lineW: 1.4 });
+      // o Pão de Açúcar e o Morro da Urca, com o bondinho
+      const L1 = layer(0.8), m = L1.ctx;
+      const pa = mountain(m, r, { x0: 660, x1: 1230, base: 700, peaks: [{ x: 990, h: 310, w: 92, k: 3.6 }, { x: 815, h: 140, w: 92, k: 2.6 }], tone: 38, alpha: 0.85, texture: 1, dots: 0.25, foot: 0, fade: 0.3, rough: 8, fine: 5, ledge: 0, folds: 5 });
+      for (let i = 0; i < 26; i++) { const x = R(r, 740, 885); tinyTree(m, r, x, pa.yAt(x) + R(r, 2, 40), R(r, 10, 20), 0.8); }
+      for (let i = 0; i < 14; i++) { const x = R(r, 915, 1100); tinyTree(m, r, x, 700 - R(r, 0, 50), R(r, 10, 18), 0.75); }
+      const ua = [815, pa.yAt(815) - 4], pb = [978, pa.yAt(978) - 6];
+      m.strokeStyle = ink(0.6); m.lineWidth = 1;
+      m.beginPath(); m.moveTo(ua[0], ua[1]); m.quadraticCurveTo((ua[0] + pb[0]) / 2, (ua[1] + pb[1]) / 2 + 26, pb[0], pb[1]); m.stroke();
+      m.fillStyle = 'rgba(155,43,43,0.85)'; m.fillRect(888, (ua[1] + pb[1]) / 2 + 12, 7, 5);
+      waterLines(m, r, 705, 880, 0.08);
+      // falésia em primeiro plano com o pinheiro que se debruça sobre o mar
+      const P = layer(1), c = P.ctx;
+      const cl = mountain(c, r, { x0: 1080, x1: 1680, base: 900, peaks: [{ x: 1350, h: 380, w: 150, k: 2.4 }], tone: 26, alpha: 0.92, texture: 1.1, dots: 0.45, foot: 0, fade: 0.3, folds: 6 });
+      for (let i = 0; i < 10; i++) { const x = R(r, 1260, 1460); tinyTree(c, r, x, cl.yAt(x) + R(r, 4, 30), R(r, 18, 34)); }
+      pine(c, r, 1330, cl.yAt(1330) + 18, 380, { side: -1, lean: 0.7, curl: 0.02, branches: 8, reach: 1, width: 24 });
+      return [
+        { c: L0.c, depth: 0.08 }, { mist: 1, y: 300, h: 100, alpha: 0.35, speed: 10 },
+        { c: F.c, depth: 0.16 }, { mist: 0, y: 590, h: 200, alpha: 0.8, speed: 6 },
+        { c: L1.c, depth: 0.4 }, { actors: true }, { reflect: true }, { mist: 1, y: 690, h: 90, alpha: 0.45, speed: 12 },
+        { c: P.c, depth: 0.9, front: true, sway: { x: 1330, y: 540, amp: 0.012, speed: 0.5 } },
+      ];
+    },
+  },
   /* I · A partida: porto de Kobe, cerejeiras, o navio */
   {
     id: 'kobe', seed: 11, bg: PAPER,
@@ -177,7 +213,7 @@ export const SCENES = [
       const L0 = farRange(r, 560, { n: 9, hmax: 200, alpha: 0.35, tone: 110 });
       const L1 = layer(0.7), m = L1.ctx;
       mountain(m, r, { x0: 1000, x1: 1700, base: 650, peaks: [{ x: 1300, h: 220, w: 260 }], tone: 50, alpha: 0.7, texture: 0.6, dots: 0.4, foot: 0 });
-      for (let i = 0; i < 9; i++) araucaria(m, r, R(r, 1050, 1600), R(r, 560, 650), R(r, 90, 170), { alpha: 0.7 });
+      for (let i = 0; i < 9; i++) araucaria(m, r, R(r, 1050, 1600), R(r, 560, 650), R(r, 90, 170), { alpha: 0.5 });
       const L2 = layer(1), c = L2.ctx;
       const cl = mountain(c, r, { x0: -80, x1: 520, base: 760, peaks: [{ x: 200, h: 300, w: 220 }], tone: 28, alpha: 0.9, texture: 1, dots: 0.5, foot: 0 });
       rocks(c, r, 600, 690, 330, 32, 0.75);
@@ -264,6 +300,7 @@ export const SCENES = [
       karstCluster(L1.ctx, r, 650, 1450, 560, { n: 7, tone: 70, alpha: 0.6, hmax: 300 });
       const L2 = layer(1), c = L2.ctx;
       const cl = mountain(c, r, { x0: 300, x1: 1300, base: 900, peaks: [{ x: 800, h: 360, w: 260, k: 3 }], tone: 30, alpha: 0.88, texture: 1.1, dots: 0.4, foot: 0, folds: 8 });
+      pine(c, r, 690, cl.yAt(690) + 26, 230, { side: -1, lean: 0.55, branches: 6, alpha: 0.95 });
       pavilion(c, 800, cl.yAt(800) + 32, 1.1);
       const fy = cl.yAt(930) + 30;
       waterfall(c, r, 930, fy, 40, 820);

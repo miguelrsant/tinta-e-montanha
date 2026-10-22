@@ -154,6 +154,7 @@ export default function App() {
 
         <section className="text" key={chapter}>
           <div className="eyebrow reveal" style={{ '--d': 0 }}>
+            {ch.cover && <span className="seal-mini" aria-hidden="true">根</span>}
             <i className="rule" />{ch.eyebrow}
           </div>
           <h1 className={`reveal ${ch.cover ? 'cover' : ''}`} style={{ '--d': 1 }}>
@@ -167,6 +168,14 @@ export default function App() {
             </div>
           )}
           {ch.body && <p className="body reveal" style={{ '--d': 2 }}>{ch.body}</p>}
+          {ch.cover && (
+            <div className="route reveal" style={{ '--d': 2.5 }} aria-label="De Kobe a Santos: 52 dias de mar, em 1908">
+              <span className="port"><b className="cn">神戸</b>Kobe</span>
+              <span className="line" aria-hidden="true"><i className="boat" /></span>
+              <span className="port"><b className="cn">サントス</b>Santos</span>
+              <span className="days">52 dias de mar</span>
+            </div>
+          )}
           {ch.cover && (
             <div className="cta reveal" style={{ '--d': 3 }}>
               <button className="primary" onClick={() => begin(true, true)}>

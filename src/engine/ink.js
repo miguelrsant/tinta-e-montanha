@@ -46,7 +46,11 @@ const ink = (a, t = 24) => `rgba(${t},${t - 2},${t - 5},${a})`;
 const leafInk = (a, v = 0) => `rgba(${22 + v},${48 + v},${33 + v},${a})`;
 
 /* ---------- Montanha ---------- */
-function mountain(ctx, r, o) {
+function mountain(out, r, o) {
+  // desenha numa folha à parte para poder dissolver a base na névoa no fim
+  const sheet = canvas(out.canvas.width, out.canvas.height);
+  const ctx = sheet.getContext('2d');
+  ctx.setTransform(out.getTransform()); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   const nf = noise1(r), nf2 = noise1(r), nf3 = noise1(r);
   const tone = o.tone ?? 30, alpha = o.alpha ?? 0.8, base = o.base;
   const pts = [];
@@ -60,6 +64,8 @@ function mountain(ctx, r, o) {
     }
     return best;
   };
+  // as pontas descem até a base: nada termina num corte reto
+  const taper = o.taper ?? Math.min(220, (o.x1 - o.x0) * 0.22);
   for (let x = o.x0; x <= o.x1; x += 3) {
     let y = 0;
     for (const p of o.peaks) {
@@ -72,6 +78,8 @@ function mountain(ctx, r, o) {
     // degraus/saliências de rocha
     const ledge = Math.floor(nf3(x * 0.03) * 4) / 4 * (o.ledge ?? 10);
     y = y + (rough + fine + ledge) * (0.3 + 0.7 * rel);
+    const e = Math.min(1, Math.min(x - o.x0, o.x1 - x) / taper);
+    y *= e * e * (3 - 2 * e);
     pts.push([x, base - Math.max(0, y)]);
   }
   const yAt = (x) => {
@@ -193,78 +201,199 @@ function mountain(ctx, r, o) {
     ctx.save(); ctx.clip(shape);
     for (let i = 0; i < (o.x1 - o.x0) * 0.7; i++) {
       const x = R(r, o.x0, o.x1), y = yAt(x) + R(r, 0, 60) * Math.pow(r(), 1.5);
+      if (yAt(x) - top > span * (o.snowLine ?? 1)) continue;
       ctx.fillStyle = `rgba(250,248,244,${R(r, 0.5, 0.95)})`;
       ctx.beginPath(); ctx.ellipse(x, y + 3, R(r, 4, 16), R(r, 1.5, 4.5), R(r, -0.3, 0.3), 0, Math.PI * 2); ctx.fill();
     }
     ctx.restore();
   }
+  // a base some aos poucos (névoa / água), em vez de terminar numa linha
+  const fadeH = (bottom - top) * (o.fade ?? 0.38);
+  if (fadeH > 1) {
+    ctx.globalCompositeOperation = 'destination-in';
+    const fg = ctx.createLinearGradient(0, bottom - fadeH, 0, bottom);
+    fg.addColorStop(0, 'rgba(0,0,0,1)'); fg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = fg;
+    ctx.fillRect(o.x0 - 400, top - 400, o.x1 - o.x0 + 800, bottom - top + 800);
+  }
+  out.save(); out.setTransform(1, 0, 0, 1, 0, 0); out.drawImage(sheet, 0, 0); out.restore();
   return { pts, yAt, top, shape };
 }
 
+/* ---------- Árvores: pincel detalhado como na referência ---------- */
+// cor da folhagem: verde quase preto, com tinta preta misturada
+const foliage = (r, a) => (r() < 0.6 ? leafInk(a, R(r, -16, 4)) : ink(a, R(r, 10, 26)));
+
+// Tufo de agulhas: meia-roda de traços finos e curtos (como na pintura de pinheiro)
+function needleFan(ctx, r, x, y, s, a, dir = -Math.PI / 2, spread = 2.6) {
+  const n = 7 + Math.floor(r() * 7);
+  const lw = Math.max(0.5, s * 0.09);
+  ctx.strokeStyle = foliage(r, R(r, 0.55, 0.9) * a);
+  ctx.lineWidth = lw;
+  ctx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const an = dir + (i / (n - 1) - 0.5) * spread + R(r, -0.08, 0.08), l = s * R(r, 0.7, 1);
+    ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(an) * l, y + Math.sin(an) * l);
+  }
+  ctx.stroke();
+}
+
+// Almofada de folhagem: muitos tufos formando uma massa achatada,
+// base reta e escura, topo arredondado e rendado
+function foliagePad(ctx, r, cx, cy, w, h, a = 0.9) {
+  const s = Math.max(2.5, Math.min(13, h * 0.42));
+  const n = Math.round((w * h) / (s * s) * 1.6) + 3;
+  const tufts = [];
+  for (let i = 0; i < n; i++) {
+    const u = R(r, -1, 1), dome = Math.sqrt(Math.max(0, 1 - u * u));
+    const x = cx + u * w * 0.5 * R(r, 0.85, 1);
+    const y = cy + h * 0.32 - r() * dome * h * 0.85;
+    tufts.push([x, y]);
+  }
+  tufts.sort((p, q) => p[1] - q[1]);
+  // miolo em aguada cinza-esverdeada (luz dentro da copa)
+  ctx.fillStyle = leafInk(0.2 * a, 10);
+  ctx.beginPath(); ctx.ellipse(cx, cy, w * 0.42, h * 0.3, 0, 0, Math.PI * 2); ctx.fill();
+  for (const [x, y] of tufts) needleFan(ctx, r, x, y, s * R(r, 0.75, 1.15), a, -Math.PI / 2 + (x - cx) / w * 0.8);
+  // base: pincelada escura e quase reta
+  ctx.strokeStyle = ink(0.75 * a, 12); ctx.lineWidth = Math.max(1, h * 0.12);
+  ctx.beginPath();
+  const y0 = cy + h * 0.34;
+  for (let x = cx - w * 0.42; x <= cx + w * 0.42; x += Math.max(3, w / 14)) ctx.lineTo(x, y0 + R(r, -1, 1) * h * 0.06);
+  ctx.stroke();
+}
+
+// Tronco/galho de pincel: largura que afina, borda irregular, casca em pincel seco
+function limb(ctx, r, pts, w0, w1, a = 0.92, bark = true) {
+  const n = pts.length;
+  if (n < 2) return;
+  const L = [], Rr = [];
+  for (let i = 0; i < n; i++) {
+    const p = pts[i], q = pts[Math.min(n - 1, i + 1)], o = pts[Math.max(0, i - 1)];
+    let dx = q[0] - o[0], dy = q[1] - o[1];
+    const len = Math.hypot(dx, dy) || 1; dx /= len; dy /= len;
+    const w = (w0 + (w1 - w0) * (i / (n - 1))) * 0.5;
+    L.push([p[0] - dy * w * R(r, 0.85, 1.12), p[1] + dx * w * R(r, 0.85, 1.12)]);
+    Rr.push([p[0] + dy * w * R(r, 0.85, 1.12), p[1] - dx * w * R(r, 0.85, 1.12)]);
+  }
+  ctx.fillStyle = ink(a, 22);
+  ctx.beginPath(); ctx.moveTo(L[0][0], L[0][1]);
+  for (const p of L) ctx.lineTo(p[0], p[1]);
+  for (let i = n - 1; i >= 0; i--) ctx.lineTo(Rr[i][0], Rr[i][1]);
+  ctx.closePath(); ctx.fill();
+  if (!bark || w0 < 3) return;
+  // casca: escamas claras de pincel seco e nós escuros
+  const marks = Math.round(n * w0 * 0.35);
+  for (let k = 0; k < marks; k++) {
+    const i = Math.floor(r() * (n - 1)), t = r();
+    const p = pts[i], q = pts[i + 1];
+    const x = p[0] + (q[0] - p[0]) * t, y = p[1] + (q[1] - p[1]) * t;
+    const w = (w0 + (w1 - w0) * (i / (n - 1))) * 0.5;
+    let dx = q[0] - p[0], dy = q[1] - p[1]; const len = Math.hypot(dx, dy) || 1; dx /= len; dy /= len;
+    const off = R(r, -0.75, 0.75) * w;
+    const bx = x - dy * off, by = y + dx * off;
+    if (r() < 0.7) {
+      ctx.strokeStyle = `rgba(236,231,221,${R(r, 0.12, 0.38)})`; ctx.lineWidth = R(r, 0.6, Math.max(1, w * 0.25));
+      const l = R(r, 0.3, 1.1) * w;
+      ctx.beginPath(); ctx.moveTo(bx - dy * l * 0.5, by + dx * l * 0.5);
+      ctx.quadraticCurveTo(bx + dx * l * 0.4, by + dy * l * 0.4, bx + dy * l * 0.5, by - dx * l * 0.5); ctx.stroke();
+    } else {
+      ctx.fillStyle = ink(R(r, 0.5, 0.9), 8);
+      ctx.beginPath(); ctx.ellipse(bx, by, R(r, 0.8, 2) * Math.max(1, w * 0.2), R(r, 0.6, 1.4), Math.atan2(dy, dx), 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  // borda de sombra de um lado
+  ctx.strokeStyle = ink(0.7 * a, 6); ctx.lineWidth = Math.max(0.8, w0 * 0.12);
+  ctx.beginPath(); ctx.moveTo(Rr[0][0], Rr[0][1]); for (const p of Rr) ctx.lineTo(p[0], p[1]); ctx.stroke();
+}
+
+// Caminho torto: passos com ângulo que vagueia
+function crookedPath(r, x, y, ang, len, steps, wander = 0.25, pull = 0) {
+  const pts = [[x, y]];
+  let a = ang;
+  for (let i = 0; i < steps; i++) {
+    a += R(r, -wander, wander) + pull;
+    x += Math.cos(a) * len / steps; y += Math.sin(a) * len / steps;
+    pts.push([x, y]);
+  }
+  return pts;
+}
+
+// Coníferas ao longe: haste com camadas de agulhas pendentes (silhueta serrilhada)
 function tinyTree(ctx, r, x, y, h, a = 1) {
-  ctx.strokeStyle = leafInk(0.8 * a); ctx.lineWidth = Math.max(0.8, h * 0.08);
-  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + R(r, -1, 1), y - h); ctx.stroke();
-  const tiers = 3 + Math.floor(r() * 3);
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = ink(0.75 * a, 20); ctx.lineWidth = Math.max(0.7, h * 0.05);
+  ctx.beginPath(); ctx.moveTo(x, y + h * 0.05); ctx.lineTo(x + R(r, -1, 1), y - h * 1.05); ctx.stroke();
+  const tiers = Math.max(4, Math.min(14, Math.round(h / 2.6)));
   for (let t = 0; t < tiers; t++) {
-    const ty = y - h * (0.3 + 0.7 * t / tiers), w = h * 0.45 * (1 - t / (tiers + 1));
-    ctx.lineWidth = Math.max(1, h * 0.12);
-    ctx.beginPath(); ctx.moveTo(x - w, ty + w * 0.25); ctx.lineTo(x, ty); ctx.lineTo(x + w, ty + w * 0.25); ctx.stroke();
+    const u = t / tiers, ty = y - h * (0.12 + 0.88 * u);
+    const wid = h * 0.34 * Math.pow(1 - u, 0.85) * R(r, 0.7, 1.25) + h * 0.03;
+    for (const side of [-1, 1]) {
+      const k = 2 + Math.floor(r() * 2);
+      for (let j = 0; j < k; j++) {
+        ctx.strokeStyle = foliage(r, R(r, 0.6, 0.95) * a);
+        ctx.lineWidth = Math.max(0.7, h * R(r, 0.04, 0.08));
+        const ex = x + side * wid * R(r, 0.5, 1), ey = ty + wid * R(r, 0.2, 0.55);
+        ctx.beginPath(); ctx.moveTo(x, ty - h * 0.02); ctx.lineTo(ex, ey); ctx.stroke();
+      }
+    }
+  }
+  if (h > 10) for (let i = 0; i < h * 0.4; i++) {
+    const u = r(), ty = y - h * (0.15 + 0.8 * u);
+    ctx.fillStyle = foliage(r, R(r, 0.4, 0.8) * a);
+    ctx.beginPath(); ctx.ellipse(x + R(r, -1, 1) * h * 0.22 * (1 - u), ty, h * 0.05, h * 0.03, 0, 0, Math.PI * 2); ctx.fill();
   }
 }
 
 /* ---------- Pinheiro do Huangshan ---------- */
 function plate(ctx, r, cx, cy, s, a = 0.85, snow = false) {
-  ctx.fillStyle = leafInk(a * 0.8);
-  ctx.beginPath(); ctx.ellipse(cx, cy, s * 0.95, s * 0.28, R(r, -0.08, 0.08), 0, Math.PI * 2); ctx.fill();
-  const n = Math.round(s * 3);
-  for (let i = 0; i < n; i++) {
-    const px = cx + R(r, -0.9, 0.9) * s, ang = R(r, -Math.PI * 0.9, -Math.PI * 0.1);
-    const l = R(r, 0.15, 0.42) * s;
-    ctx.strokeStyle = r() < 0.7 ? leafInk(R(r, 0.55, 0.95) * a, R(r, -10, 14)) : ink(R(r, 0.5, 0.9) * a, 14);
-    ctx.lineWidth = R(r, 0.8, 1.8);
-    ctx.beginPath(); ctx.moveTo(px, cy + s * 0.08); ctx.lineTo(px + Math.cos(ang) * l, cy + Math.sin(ang) * l * 0.7); ctx.stroke();
-  }
+  foliagePad(ctx, r, cx, cy, s * 2, s * 0.62, a);
   if (snow) {
     ctx.fillStyle = 'rgba(252,251,248,0.92)';
     for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.ellipse(cx + R(r, -0.6, 0.6) * s, cy - s * 0.2, s * R(r, 0.12, 0.3), s * 0.07, 0, 0, Math.PI * 2); ctx.fill(); }
   }
 }
 
+// Pinheiro retorcido: tronco que serpenteia, galhos quase horizontais e camadas de almofadas
 function pine(ctx, r, x, y, h, o = {}) {
-  const lean = o.lean ?? 0.3, side = o.side ?? 1, a = o.alpha ?? 1;
-  const steps = 24, pts = [];
-  for (let i = 0; i <= steps; i++) {
-    const t = i / steps;
-    pts.push([x + side * (lean * t * t * h * 0.9 + Math.sin(t * 5 + x) * h * 0.035), y - t * h * (1 - lean * 0.35)]);
-  }
-  const w0 = o.width ?? h * 0.055;
-  for (let i = 0; i < steps; i++) {
-    ctx.strokeStyle = ink(0.9 * a, 20);
-    ctx.lineWidth = w0 * (1 - (i / steps) * 0.75);
-    ctx.beginPath(); ctx.moveTo(pts[i][0], pts[i][1]); ctx.lineTo(pts[i + 1][0], pts[i + 1][1]); ctx.stroke();
-  }
-  // casca
-  for (let i = 0; i < 26; i++) {
-    const p = pts[Math.floor(r() * steps * 0.8)];
-    ctx.strokeStyle = 'rgba(235,230,220,0.25)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.arc(p[0] + R(r, -w0 * 0.3, w0 * 0.3), p[1], R(r, 2, w0 * 0.4), 0.2, 2.2); ctx.stroke();
-  }
-  const nb = o.branches ?? 7;
+  const side = o.side ?? 1, lean = o.lean ?? 0.3, a = o.alpha ?? 1;
+  const ang0 = -Math.PI / 2 + side * lean;
+  const trunk = crookedPath(r, x, y, ang0, h, 26, 0.12, side * (o.curl ?? 0.012));
+  const w0 = o.width ?? h * 0.075;
+  // galhos primeiro, tronco por cima
+  const nb = o.branches ?? 7, pads = [];
   for (let b = 0; b < nb; b++) {
-    const t = 0.32 + 0.68 * (b / nb) + R(r, -0.03, 0.03);
-    const p = pts[Math.min(steps, Math.floor(t * steps))];
-    const dir = (b % 3 === 0 ? -side : side) * (o.oneSided ? 0 : 1) || side;
-    const len = h * R(r, 0.18, 0.42) * (1 - t * 0.45);
-    const ex = p[0] + dir * len, ey = p[1] - len * R(r, -0.05, 0.25);
-    ctx.strokeStyle = ink(0.9 * a, 20); ctx.lineWidth = w0 * 0.45 * (1 - t * 0.5);
-    ctx.beginPath(); ctx.moveTo(p[0], p[1]);
-    ctx.quadraticCurveTo(p[0] + dir * len * 0.5, p[1] + len * 0.12, ex, ey); ctx.stroke();
-    const ps = h * R(r, 0.09, 0.15) * (o.plate ?? 1);
-    plate(ctx, r, ex, ey, ps, a, o.snow);
-    plate(ctx, r, ex - dir * ps * 0.9, ey + ps * 0.25, ps * 0.75, a, o.snow);
+    const t = 0.38 + 0.6 * (b / nb) + R(r, -0.03, 0.03);
+    const i = Math.min(trunk.length - 1, Math.floor(t * (trunk.length - 1)));
+    const [px, py] = trunk[i];
+    const dir = o.oneSided || b % 3 !== 0 ? side : -side;
+    const len = h * R(r, 0.28, 0.55) * (1 - t * 0.35) * (o.reach ?? 1);
+    const ang = dir > 0 ? R(r, -0.25, 0.08) : Math.PI - R(r, -0.25, 0.08);
+    const bp = crookedPath(r, px, py, ang, len, 12, 0.14, dir * -0.004);
+    limb(ctx, r, bp, w0 * 0.42 * (1 - t * 0.4), w0 * 0.08, a);
+    // raminhos que sobem e almofadas sobre eles
+    for (let k = 0; k < 3; k++) {
+      const q = bp[Math.floor(R(r, 0.45, 1) * (bp.length - 1))];
+      const tw = crookedPath(r, q[0], q[1], -Math.PI / 2 + dir * R(r, 0.3, 1.1), len * R(r, 0.12, 0.25), 4, 0.2);
+      limb(ctx, r, tw, w0 * 0.12, w0 * 0.04, a, false);
+      const e = tw[tw.length - 1];
+      pads.push([e[0], e[1], len * R(r, 0.45, 0.7)]);
+    }
+    const e = bp[bp.length - 1];
+    pads.push([e[0], e[1], len * R(r, 0.5, 0.75)]);
   }
-  const tp = pts[steps];
-  plate(ctx, r, tp[0], tp[1], h * 0.14 * (o.plate ?? 1), a, o.snow);
+  limb(ctx, r, trunk, w0, w0 * 0.35, a);
+  const tp = trunk[trunk.length - 1];
+  pads.push([tp[0], tp[1], h * 0.3 * (o.plate ?? 1)]);
+  pads.sort((p, q) => q[1] - p[1]);
+  for (const [px, py, pw] of pads) {
+    const ww = pw * (o.plate ?? 1);
+    foliagePad(ctx, r, px, py, ww, ww * 0.3, a);
+  }
+  if (o.snow) {
+    ctx.fillStyle = 'rgba(252,251,248,0.9)';
+    for (const [px, py, pw] of pads) for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.ellipse(px + R(r, -0.35, 0.35) * pw, py - pw * 0.1, pw * R(r, 0.08, 0.18), pw * 0.035, 0, 0, Math.PI * 2); ctx.fill(); }
+  }
 }
 
 /* ---------- Bambu ---------- */
@@ -465,19 +594,23 @@ function floweringTree(ctx, r, x, y, h, rgb, o = {}) {
   ctx.strokeStyle = ink(0.88, 22); ctx.lineCap = 'round';
   const tops = [];
   const branch = (bx, by, ang, len, w, depth) => {
-    // galho torto em dois segmentos, como pincel seco
-    const mx = bx + Math.cos(ang + R(r, -0.25, 0.25)) * len * 0.5, my = by + Math.sin(ang + R(r, -0.25, 0.25)) * len * 0.5;
-    const ex = mx + Math.cos(ang) * len * 0.5, ey = my + Math.sin(ang) * len * 0.5;
-    ctx.strokeStyle = ink(0.9, 22);
-    ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(mx, my); ctx.stroke();
-    ctx.lineWidth = w * 0.8; ctx.beginPath(); ctx.moveTo(mx, my); ctx.lineTo(ex, ey); ctx.stroke();
-    if (w > 4) { ctx.strokeStyle = 'rgba(235,230,220,0.25)'; ctx.lineWidth = w * 0.18; ctx.beginPath(); ctx.moveTo(bx + w * 0.2, by); ctx.lineTo(mx + w * 0.15, my); ctx.stroke(); }
+    // galho torto de pincel, com casca e raminhos finos
+    const pts = crookedPath(r, bx, by, ang, len, 8, 0.16);
+    limb(ctx, r, pts, w, w * 0.62, 0.92);
+    const [ex, ey] = pts[pts.length - 1];
+    if (depth <= 1) {
+      for (let k = 0; k < 3; k++) {
+        const q = pts[Math.floor(R(r, 0.5, 1) * (pts.length - 1))];
+        const tw = crookedPath(r, q[0], q[1], ang + R(r, -0.9, 0.9), len * R(r, 0.25, 0.45), 4, 0.25);
+        limb(ctx, r, tw, Math.max(1, w * 0.35), 0.6, 0.85, false);
+      }
+    }
     if (depth <= 0) { tops.push([ex, ey]); return; }
-    if (sakura && depth <= 2) tops.push([mx, my]);
-    branch(ex, ey, ang - R(r, 0.3, 0.7), len * R(r, 0.6, 0.8), w * 0.65, depth - 1);
-    branch(ex, ey, ang + R(r, 0.3, 0.7), len * R(r, 0.6, 0.8), w * 0.65, depth - 1);
+    if (sakura && depth <= 2) tops.push(pts[4]);
+    branch(ex, ey, ang - R(r, 0.3, 0.7), len * R(r, 0.6, 0.8), w * 0.62, depth - 1);
+    branch(ex, ey, ang + R(r, 0.3, 0.7), len * R(r, 0.6, 0.8), w * 0.62, depth - 1);
   };
-  branch(x, y, -Math.PI / 2 + lean, h * 0.42, h * 0.05, o.depth ?? 3);
+  branch(x, y, -Math.PI / 2 + lean, h * 0.42, h * 0.06, o.depth ?? 3);
   const cs = h * 0.13;
   if (sakura) {
     // 1. aguada rosada difusa que forma a copa
@@ -519,49 +652,84 @@ function floweringTree(ctx, r, x, y, h, rgb, o = {}) {
     blossom(ctx, r, tx, ty, h * 0.13, o.n ?? 70, rgb, o.alpha ?? 0.9);
   }
 }
-// Palmeira (juçara/coqueiro) da Mata Atlântica
+// Palmeira (juçara/coqueiro) da Mata Atlântica: estipe com anéis e folhas de folíolos pendentes
 function palm(ctx, r, x, y, h, o = {}) {
   const lean = o.lean ?? R(r, -0.25, 0.25), a = o.alpha ?? 0.85;
-  const tx = x + lean * h, ty = y - h;
-  ctx.strokeStyle = ink(a, 26); ctx.lineWidth = Math.max(1.5, h * 0.03);
-  ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + lean * h * 0.2, y - h * 0.5, tx, ty); ctx.stroke();
-  ctx.strokeStyle = leafInk(a);
-  for (let i = 0; i < 9; i++) {
-    const ang = -Math.PI / 2 + (i - 4) * 0.42 + R(r, -0.1, 0.1), len = h * R(r, 0.3, 0.45);
-    const ex = tx + Math.cos(ang) * len, ey = ty + Math.sin(ang) * len * 0.5 + len * 0.35;
-    ctx.lineWidth = 1.2;
-    ctx.beginPath(); ctx.moveTo(tx, ty); ctx.quadraticCurveTo(tx + Math.cos(ang) * len * 0.5, ty + Math.sin(ang) * len * 0.5 - 6, ex, ey); ctx.stroke();
-    for (let k = 1; k < 9; k++) {
-      const u = k / 9, px = tx + (ex - tx) * u, py = ty + (ey - ty) * u - Math.sin(u * Math.PI) * 6;
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + R(r, -4, 4), py + len * 0.18 * (1 - u * 0.5)); ctx.stroke();
-    }
+  const trunk = crookedPath(r, x, y, -Math.PI / 2 + lean * 0.8, h, 14, 0.04, -lean * 0.01);
+  const w = Math.max(1.5, h * 0.03);
+  limb(ctx, r, trunk, w * 1.2, w * 0.8, a, false);
+  if (h > 60) {
+    ctx.strokeStyle = 'rgba(236,231,221,0.35)'; ctx.lineWidth = 0.8;
+    for (let i = 1; i < trunk.length - 1; i++) { const [px, py] = trunk[i]; ctx.beginPath(); ctx.moveTo(px - w * 0.55, py); ctx.lineTo(px + w * 0.55, py - 1); ctx.stroke(); }
   }
-}
-// Araucária: tronco reto e galhos em candelabro com tufos nas pontas
-function araucaria(ctx, r, x, y, h, o = {}) {
-  const a = o.alpha ?? 0.88;
-  ctx.strokeStyle = ink(a, 22); ctx.lineCap = 'round';
-  ctx.lineWidth = Math.max(1.5, h * 0.035);
-  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + R(r, -3, 3), y - h); ctx.stroke();
-  const tiers = o.tiers ?? 4;
-  for (let i = 0; i < tiers; i++) {
-    const ty = y - h * (0.62 + 0.38 * i / tiers), spread = h * (0.42 - i * 0.07);
-    for (const side of [-1, 1]) {
-      const ex = x + side * spread, ey = ty - spread * 0.55;
-      ctx.lineWidth = Math.max(1, h * 0.014);
-      ctx.beginPath(); ctx.moveTo(x, ty); ctx.quadraticCurveTo(x + side * spread * 0.7, ty + spread * 0.12, ex, ey); ctx.stroke();
-      ctx.fillStyle = leafInk(a * 0.92);
-      ctx.strokeStyle = leafInk(a * 0.9, 8);
-      ctx.beginPath(); ctx.ellipse(ex, ey, spread * 0.32, spread * 0.13, side * -0.15, 0, Math.PI * 2); ctx.fill();
-      for (let k = 0; k < 14; k++) {
-        const px = ex + R(r, -0.3, 0.3) * spread, an = R(r, -Math.PI * 0.95, -Math.PI * 0.05);
-        ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(px, ey); ctx.lineTo(px + Math.cos(an) * spread * 0.14, ey + Math.sin(an) * spread * 0.14); ctx.stroke();
+  const [tx, ty] = trunk[trunk.length - 1];
+  const fronds = o.fronds ?? 11;
+  for (let i = 0; i < fronds; i++) {
+    const ang = -Math.PI / 2 + (i / (fronds - 1) - 0.5) * 3.8 + R(r, -0.18, 0.18), len = h * R(r, 0.3, 0.5);
+    const ex = tx + Math.cos(ang) * len, ey = ty + Math.sin(ang) * len * 0.45 + len * 0.45;
+    const cx = tx + Math.cos(ang) * len * 0.5, cy = ty + Math.sin(ang) * len * 0.6 - len * 0.12;
+    ctx.strokeStyle = leafInk(a, -6); ctx.lineWidth = Math.max(0.8, h * 0.006);
+    ctx.beginPath(); ctx.moveTo(tx, ty); ctx.quadraticCurveTo(cx, cy, ex, ey); ctx.stroke();
+    // folíolos em pares, que pendem e encurtam na ponta
+    const n = Math.round(10 + len * 0.12);
+    for (let k = 1; k < n; k++) {
+      const u = k / n, iu = 1 - u;
+      const px = iu * iu * tx + 2 * iu * u * cx + u * u * ex, py = iu * iu * ty + 2 * iu * u * cy + u * u * ey;
+      const ll0 = len * 0.22 * Math.sin(Math.PI * (0.15 + u * 0.85)) + 2;
+      for (const sd of [-1, 1]) {
+        if (r() < 0.15) continue;
+        const ll = ll0 * R(r, 0.55, 1.15);
+        ctx.strokeStyle = foliage(r, R(r, 0.6, 0.95) * a); ctx.lineWidth = R(r, 0.7, 1.4) * Math.max(0.8, h / 260);
+        ctx.beginPath(); ctx.moveTo(px, py);
+        const sw = R(r, 0.2, 0.6);
+        ctx.quadraticCurveTo(px + sd * ll * sw, py + ll * 0.15, px + sd * ll * sw * 1.2 + R(r, -2, 2), py + ll * R(r, 0.8, 1)); ctx.stroke();
       }
     }
   }
-  ctx.fillStyle = leafInk(a * 0.92);
-  ctx.beginPath(); ctx.ellipse(x, y - h, h * 0.08, h * 0.04, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = ink(0.8 * a, 14);
+  ctx.beginPath(); ctx.ellipse(tx, ty + 2, w * 1.2, w * 0.8, 0, 0, Math.PI * 2); ctx.fill();
+}
+// Araucária: tronco reto com casca, galhos em candelabro que sobem e tufos em taça nas pontas
+function araucariaTuft(ctx, r, x, y, s, a) {
+  // taça: tufos que abrem para cima e para fora, base escura e plana
+  const n = Math.round(6 + s * 0.35), ts = Math.max(3, s * 0.32);
+  for (let i = 0; i < n; i++) {
+    const u = R(r, -1, 1);
+    needleFan(ctx, r, x + u * s * 0.5, y - Math.abs(u) * s * 0.18 - r() * s * 0.08, ts * R(r, 0.8, 1.2), a, -Math.PI / 2 + u * 0.7, 2.2);
+  }
+  ctx.strokeStyle = ink(0.7 * a, 12); ctx.lineWidth = Math.max(1, s * 0.07);
+  ctx.beginPath(); ctx.moveTo(x - s * 0.42, y - s * 0.1); ctx.quadraticCurveTo(x, y + s * 0.08, x + s * 0.42, y - s * 0.1); ctx.stroke();
+}
+function araucaria(ctx, r, x, y, h, o = {}) {
+  const a = o.alpha ?? 0.9;
+  const trunk = crookedPath(r, x, y, -Math.PI / 2 + R(r, -0.03, 0.03), h, 18, 0.03);
+  const w0 = Math.max(2, h * 0.04);
+  // tocos de galhos secos no tronco
+  for (let i = 0; i < 5; i++) {
+    const q = trunk[Math.floor(R(r, 0.3, 0.6) * trunk.length)], sd = r() < 0.5 ? -1 : 1;
+    limb(ctx, r, crookedPath(r, q[0], q[1], sd > 0 ? -0.5 : Math.PI + 0.5, h * R(r, 0.03, 0.07), 3, 0.2), w0 * 0.25, w0 * 0.08, a * 0.8, false);
+  }
+  const tiers = o.tiers ?? 4, tufts = [];
+  for (let i = 0; i < tiers; i++) {
+    const t = 0.6 + 0.36 * (i / tiers);
+    const q = trunk[Math.min(trunk.length - 1, Math.floor(t * (trunk.length - 1)))];
+    const spread = h * (0.42 - i * 0.075) * R(r, 0.85, 1.1);
+    for (const side of [-1, 1]) {
+      // sai quase horizontal e vira para cima (candelabro)
+      const bp = crookedPath(r, q[0], q[1], side > 0 ? 0.15 : Math.PI - 0.15, spread * 1.1, 12, 0.05, -side * 0.085);
+      limb(ctx, r, bp, w0 * 0.42, w0 * 0.14, a, false);
+      const e = bp[bp.length - 1];
+      tufts.push([e[0], e[1], spread * R(r, 0.42, 0.55)]);
+      // tufos menores ao longo do galho
+      const m = bp[Math.floor(bp.length * 0.6)];
+      if (spread > h * 0.2) tufts.push([m[0], m[1] - 2, spread * 0.32]);
+    }
+  }
+  limb(ctx, r, trunk, w0, w0 * 0.5, a);
+  const tp = trunk[trunk.length - 1];
+  tufts.push([tp[0], tp[1], h * 0.12]);
+  tufts.sort((p, q) => q[1] - p[1]);
+  for (const [tx, ty, ts] of tufts) araucariaTuft(ctx, r, tx, ty, ts, a);
 }
 // Prédios de São Paulo ao longe, na névoa
 function skyline(ctx, r, x0, x1, base, o = {}) {
@@ -605,4 +773,4 @@ function farmhouse(ctx, x, y, s) {
   ctx.restore();
 }
 
-export const Ink = { W, H, rng, R, noise1, fbm, canvas, layer, ink, leafInk, mountain, tinyTree, pine, plate, bamboo, leaf, pavilion, roof, house, bridge, boat, rocks, maple, waterfall, blossom, floweringTree, palm, ship, farmhouse, araucaria, skyline };
+export const Ink = { foliagePad, limb, crookedPath, needleFan, W, H, rng, R, noise1, fbm, canvas, layer, ink, leafInk, mountain, tinyTree, pine, plate, bamboo, leaf, pavilion, roof, house, bridge, boat, rocks, maple, waterfall, blossom, floweringTree, palm, ship, farmhouse, araucaria, skyline };

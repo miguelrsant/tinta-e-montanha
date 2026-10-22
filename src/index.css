@@ -184,6 +184,35 @@ em { font-style: italic; color: var(--amber); }
 .cta .ghost { color: var(--muted); padding: 12px 4px; border-bottom: 1px solid transparent; }
 .cta .ghost:hover { color: var(--ink); border-bottom-color: var(--line); }
 
+/* Capa: selo vermelho e a rota do navio, de Kobe a Santos */
+.seal-mini {
+  display: inline-grid; place-items: center; width: 30px; height: 30px; flex: none;
+  background: var(--seal); color: #f4ece4; border-radius: 3px;
+  font-family: var(--han); font-size: 19px; letter-spacing: 0; line-height: 1;
+  transform: rotate(-4deg); box-shadow: inset 0 0 0 2px rgba(244, 236, 228, 0.3);
+}
+.route {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 6px 16px;
+  max-width: 520px; margin-top: clamp(16px, 2.6vh, 26px);
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.26em; text-transform: uppercase; color: var(--muted);
+}
+.route .port { display: flex; flex-direction: column; gap: 3px; }
+.route .port:nth-of-type(3) { align-items: flex-end; }
+.route .cn { font-family: var(--han); font-weight: 400; font-size: 21px; letter-spacing: 0.06em; color: var(--ink); text-transform: none; }
+.route .line { position: relative; height: 1px; background: repeating-linear-gradient(90deg, var(--teal) 0 6px, transparent 6px 11px); }
+.route .line::before, .route .line::after { content: ''; position: absolute; top: -3px; width: 7px; height: 7px; background: var(--teal); }
+.route .line::before { left: 0; }
+.route .line::after { right: 0; }
+.route .boat {
+  position: absolute; top: -10px; left: 6%; width: 16px; height: 9px;
+  animation: sail 10s ease-in-out infinite alternate;
+}
+.route .boat::before { content: ''; position: absolute; inset: 4px 0 0; background: var(--ink); clip-path: polygon(0 0, 100% 0, 84% 100%, 14% 100%); }
+.route .boat::after { content: ''; position: absolute; left: 7px; top: 0; width: 3px; height: 4px; background: var(--seal); }
+@keyframes sail { from { left: 6%; } to { left: calc(94% - 16px); } }
+.route .days { grid-column: 2; text-align: center; color: var(--teal); font-size: 10px; letter-spacing: 0.3em; }
+.text .route { text-shadow: 0 0 14px rgba(239, 235, 227, 0.9); }
+
 /* Entrada dos textos: tinta assentando no papel */
 .reveal { animation: ink-in 1.1s var(--ease) both; animation-delay: calc(var(--d) * 140ms + 120ms); }
 @keyframes ink-in {
