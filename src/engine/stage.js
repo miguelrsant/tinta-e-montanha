@@ -172,7 +172,7 @@ export class Stage {
     if (sc.snow) drawSnow(ctx, this.snow, t);
     if (sc.seal) {
       const a = Math.max(0, Math.min(1, (st - 2.5) / 1.2));
-      if (a > 0) seal(ctx, 1500, 760, 44, sc.seal, a * 0.95);
+      if (a > 0) seal(ctx, 1478, 680, 44, sc.seal, a * 0.95);
     }
   }
 
