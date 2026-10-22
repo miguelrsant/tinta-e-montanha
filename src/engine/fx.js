@@ -151,12 +151,12 @@ export function makeParticles(kind, n, seed) {
   }));
 }
 
-export function drawPetals(ctx, ps, t, a = 1) {
+export function drawPetals(ctx, ps, t, a = 1, rgb = [168, 44, 44]) {
   for (const p of ps) {
     const y = (p.y + t * 28 * p.v) % (H + 40) - 20;
     const x = (p.x + Math.sin(t * p.sp + p.ph) * 30 + t * 14 * p.v) % (W + 40) - 20;
     ctx.save(); ctx.translate(x, y); ctx.rotate(t * p.sp + p.ph);
-    ctx.fillStyle = `rgba(168,44,44,${0.75 * a})`;
+    ctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${0.8 * a})`;
     ctx.beginPath(); ctx.ellipse(0, 0, 4.5 * p.s, 2.2 * p.s, 0, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
   }
@@ -192,4 +192,170 @@ export function seal(ctx, x, y, s, chars, a = 1) {
   ctx.fillText(chars[0], 0, -s * 0.5);
   ctx.fillText(chars[1], 0, s * 0.5);
   ctx.restore();
+}
+
+// Folhas de bambu caindo em diagonal, girando
+export function drawLeaves(ctx, ps, t, n) {
+  for (let i = 0; i < Math.min(n, ps.length); i++) {
+    const p = ps[i];
+    const y = (p.y + t * 34 * p.v) % (H + 60) - 30;
+    const x = ((p.x - t * 22 * p.v + Math.sin(t * p.sp + p.ph) * 40) % (W + 60) + W + 60) % (W + 60) - 30;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(Math.sin(t * p.sp * 1.3 + p.ph) * 1.2 + p.ph);
+    ctx.fillStyle = ink(0.55, 30);
+    ctx.beginPath(); ctx.moveTo(-10 * p.s, 0);
+    ctx.quadraticCurveTo(0, -3.5 * p.s, 12 * p.s, 0); ctx.quadraticCurveTo(0, 2 * p.s, -10 * p.s, 0); ctx.fill();
+    ctx.restore();
+  }
+}
+
+// Brasas e cinzas subindo (a guerra)
+export function drawEmbers(ctx, ps, t, n) {
+  for (let i = 0; i < Math.min(n, ps.length); i++) {
+    const p = ps[i];
+    const y = H - ((p.y + t * 26 * p.v) % (H + 20));
+    const x = (p.x + Math.sin(t * p.sp + p.ph) * 26 + t * 8) % W;
+    const flick = 0.5 + 0.5 * Math.sin(t * 6 * p.sp + p.ph);
+    ctx.fillStyle = `rgba(${190 + flick * 50 | 0},${70 + flick * 60 | 0},40,${0.25 + flick * 0.5})`;
+    ctx.beginPath(); ctx.arc(x, y, 1.4 * p.s + flick, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+// Vaga-lumes sobre o lago (a lua)
+export function drawFireflies(ctx, ps, t, n) {
+  for (let i = 0; i < Math.min(n, ps.length); i++) {
+    const p = ps[i];
+    const x = p.x * 0.8 + 100 + Math.sin(t * 0.3 * p.sp + p.ph) * 60;
+    const y = 520 + (p.y / H) * 300 + Math.cos(t * 0.4 * p.sp + p.ph * 2) * 30;
+    const a = Math.max(0, Math.sin(t * 1.5 * p.sp + p.ph));
+    const g = ctx.createRadialGradient(x, y, 0, x, y, 9);
+    g.addColorStop(0, `rgba(255,246,200,${0.9 * a})`); g.addColorStop(1, 'rgba(255,246,200,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+// Poeira levantada pelos cascos
+export function drawDust(ctx, x, y, s, dir, t) {
+  for (let k = 0; k < 6; k++) {
+    const age = ((t * 2 + k / 6) % 1);
+    const px = x - dir * (20 + age * 70) * s, py = y - age * 18 * s;
+    const rad = (6 + age * 22) * s;
+    const g = ctx.createRadialGradient(px, py, 0, px, py, rad);
+    g.addColorStop(0, `rgba(150,140,125,${0.22 * (1 - age)})`); g.addColorStop(1, 'rgba(150,140,125,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px, py, rad, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+// Água caindo: fios que descem e espuma pulsando na base
+export function drawFall(ctx, f, t) {
+  ctx.lineCap = 'round';
+  for (let i = 0; i < f.w * 0.5; i++) {
+    const u = (Math.sin(i * 12.9898) * 43758.5453) % 1, uu = Math.abs(u);
+    const x = f.x - f.w / 2 + uu * f.w;
+    const len = 30 + uu * 60, span = f.bottom - f.top;
+    const y = f.top + ((t * (180 + uu * 120) + uu * 997) % (span + len)) - len;
+    ctx.strokeStyle = `rgba(255,255,255,${0.35 + uu * 0.4})`; ctx.lineWidth = 1 + uu * 2;
+    ctx.beginPath(); ctx.moveTo(x, Math.max(f.top, y)); ctx.lineTo(x, Math.min(f.bottom, y + len)); ctx.stroke();
+  }
+  for (let k = 0; k < 7; k++) {
+    const ph = (t * 0.7 + k / 7) % 1;
+    const px = f.x + Math.sin(k * 2.1) * f.w * 0.8, py = f.bottom - ph * 40, rad = 18 + ph * 40;
+    const g = ctx.createRadialGradient(px, py, 0, px, py, rad);
+    g.addColorStop(0, `rgba(250,249,246,${0.55 * (1 - ph)})`); g.addColorStop(1, 'rgba(250,249,246,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px, py, rad, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+// Estandarte vermelho tremulando
+export function banner(ctx, x, y, s, t) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  ctx.strokeStyle = ink(0.9); ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -48); ctx.stroke();
+  ctx.fillStyle = 'rgba(160,40,38,0.9)';
+  ctx.beginPath(); ctx.moveTo(0, -48);
+  for (let i = 0; i <= 6; i++) ctx.lineTo(-i * 4, -48 + Math.sin(t * 8 - i) * 2.5);
+  for (let i = 6; i >= 0; i--) ctx.lineTo(-i * 4, -36 + Math.sin(t * 8 - i) * 2.5);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+// Mar em tinta: fileiras de ondas com crista escura e espuma
+export function drawWaves(ctx, t, o) {
+  const rows = o.rows ?? 9, y0 = o.y0, y1 = o.y1 ?? H + 30;
+  for (let j = 0; j < rows; j++) {
+    const u = j / (rows - 1), y = y0 + (y1 - y0) * Math.pow(u, 1.5);
+    const amp = 3 + u * (o.amp ?? 26), fr = 0.012 - u * 0.006, sp = 0.6 + u * 0.8;
+    const wy = (x) => y + Math.sin(x * fr + t * sp + j * 1.7) * amp + Math.sin(x * fr * 2.3 - t * sp * 0.7 + j) * amp * 0.35;
+    ctx.beginPath(); ctx.moveTo(-20, H + 40);
+    for (let x = -20; x <= W + 20; x += 10) ctx.lineTo(x, wy(x));
+    ctx.lineTo(W + 20, H + 40); ctx.closePath();
+    const g = ctx.createLinearGradient(0, y - amp, 0, y + amp * 3 + 40);
+    g.addColorStop(0, `rgba(205,201,193,${0.75 + u * 0.2})`); g.addColorStop(1, `rgba(236,232,224,${0.9})`);
+    ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = ink(0.25 + u * 0.55, 30); ctx.lineWidth = 0.8 + u * 2.4;
+    ctx.beginPath();
+    for (let x = -20; x <= W + 20; x += 10) { if (x === -20) ctx.moveTo(x, wy(x)); else ctx.lineTo(x, wy(x)); }
+    ctx.stroke();
+    // espuma: garras de onda (estilo ukiyo-e) nas cristas
+    if (u > 0.3) {
+      ctx.strokeStyle = ink(0.35 + u * 0.4, 30); ctx.lineWidth = 0.8 + u;
+      const per = (Math.PI * 2) / fr;
+      for (let x = ((-t * sp / fr - j * 1.7 / fr) % per) - per; x < W + per; x += per) {
+        const cx = x + per * 0.25, cy = wy(cx);
+        for (let k = 0; k < 4; k++) {
+          ctx.beginPath(); ctx.arc(cx + k * 7 * (1 + u), cy - 2, (5 + k * 2) * (0.6 + u), Math.PI * 1.1, Math.PI * 1.9); ctx.stroke();
+        }
+      }
+    }
+  }
+}
+
+// Trem a vapor subindo a serra, com fumaça
+export function drawTrain(ctx, x, y, s, t, ang = 0) {
+  for (let k = 0; k < 10; k++) {
+    const age = (t * 0.5 + k / 10) % 1;
+    const px = x + 30 * s + age * 120 * s, py = y - 46 * s - age * 90 * s;
+    const rad = (8 + age * 36) * s;
+    const g = ctx.createRadialGradient(px, py, 0, px, py, rad);
+    g.addColorStop(0, `rgba(120,115,108,${0.35 * (1 - age)})`); g.addColorStop(1, 'rgba(120,115,108,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px, py, rad, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.scale(s, s);
+  ctx.fillStyle = ink(0.9, 20);
+  ctx.fillRect(0, -26, 44, 18); ctx.fillRect(30, -42, 16, 34); ctx.fillRect(4, -40, 7, 14);
+  ctx.beginPath(); ctx.moveTo(-6, -8); ctx.lineTo(0, -20); ctx.lineTo(0, -8); ctx.fill();
+  for (let c = 1; c <= 3; c++) {
+    ctx.fillRect(48 + (c - 1) * 52, -30, 48, 22);
+    ctx.fillStyle = 'rgba(236,231,222,0.9)';
+    for (let w = 0; w < 4; w++) ctx.fillRect(52 + (c - 1) * 52 + w * 11, -26, 6, 7);
+    ctx.fillStyle = ink(0.9, 20);
+  }
+  for (let w = 0; w < 9; w++) {
+    const wx = 6 + w * 20 + (w > 2 ? 14 : 0);
+    ctx.beginPath(); ctx.arc(wx, -5, 5, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+// Cordão de lanternas vermelhas (Liberdade), balançando com o vento
+export function drawLanterns(ctx, a, b, n, t, sag = 40) {
+  const pt = (u) => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u + Math.sin(u * Math.PI) * sag + Math.sin(t * 0.9) * 3 * Math.sin(u * Math.PI)];
+  ctx.strokeStyle = ink(0.6); ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let i = 0; i <= 30; i++) { const [x, y] = pt(i / 30); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }
+  ctx.stroke();
+  for (let i = 1; i <= n; i++) {
+    const [x, y] = pt(i / (n + 1));
+    const sw = Math.sin(t * 1.4 + i * 0.9) * 0.12;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(sw);
+    const glow = ctx.createRadialGradient(0, 18, 0, 0, 18, 40);
+    glow.addColorStop(0, 'rgba(240,150,90,0.28)'); glow.addColorStop(1, 'rgba(240,150,90,0)');
+    ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0, 18, 40, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = ink(0.7); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 6); ctx.stroke();
+    ctx.fillStyle = 'rgba(178,42,36,0.95)';
+    ctx.beginPath(); ctx.ellipse(0, 18, 10, 13, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = ink(0.85); ctx.fillRect(-6, 5, 12, 3); ctx.fillRect(-6, 29, 12, 3);
+    ctx.strokeStyle = 'rgba(90,20,18,0.5)'; ctx.lineWidth = 0.8;
+    for (const dx of [-5, 0, 5]) { ctx.beginPath(); ctx.ellipse(0, 18, Math.abs(dx) + 1, 12, 0, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.restore();
+  }
 }

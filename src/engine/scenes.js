@@ -1,9 +1,8 @@
 /* As oito pinturas da história. Cada cena é construída uma vez (camadas estáticas)
    e animada no palco com névoa, parallax, aves, cavalos e partículas. */
 import { Ink } from './ink.js';
-import { horse, figure } from './fx.js';
 
-const { W, rng, R, layer, mountain, pine, bamboo, pavilion, house, bridge, boat, rocks, maple, waterfall, tinyTree, ink } = Ink;
+const { W, rng, R, layer, mountain, pavilion, house, bridge, rocks, waterfall, tinyTree, ink, leafInk, floweringTree, palm, farmhouse, araucaria, skyline } = Ink;
 
 function farRange(r, base, o = {}) {
   const L = layer(o.scale ?? 0.35);
@@ -37,208 +36,247 @@ function waterLines(ctx, r, y0, y1, a = 0.12) {
 
 const PAPER = ['#f1ede6', '#e9e4da'];
 
+const SAKURA = [238, 172, 184];
+const IPE = [236, 190, 52];
+
+// Morros arredondados com fileiras de pés de café (ou de chá) seguindo o relevo
+function plantedHill(ctx, r, x0, x1, base, peaks, o = {}) {
+  const m = mountain(ctx, r, { x0, x1, base, peaks, tone: o.tone ?? 60, alpha: o.alpha ?? 0.55, texture: 0.25, dots: 0.05, foot: 30, rough: 18, fine: 4, ledge: 0, folds: 0, mid: 0.8, lineW: 1.6 });
+  ctx.save(); ctx.clip(m.shape);
+  for (let d = 14; d < 420; d += o.gap ?? 20) {
+    for (let x = x0; x < x1; x += o.step ?? 13) {
+      const y = m.yAt(x) + d + Math.sin(x * 0.01) * 3;
+      if (y > base + 10) continue;
+      const k = 1 - d / 460;
+      ctx.fillStyle = leafInk(R(r, 0.5, 0.9) * k * (o.rowAlpha ?? 1), R(r, -8, 16));
+      ctx.beginPath(); ctx.ellipse(x + R(r, -2, 2), y, (o.bush ?? 6) * k + 1, (o.bush ?? 6) * 0.7 * k + 1, 0, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.restore();
+  return m;
+}
+
 export const SCENES = [
-  /* I · A fronteira: bambus, duas casas, o cavalo pastando */
+  /* I · A partida: porto de Kobe, cerejeiras, o navio */
   {
-    id: 'fronteira', seed: 11, bg: PAPER,
+    id: 'kobe', seed: 11, bg: PAPER,
     birds: [{ n: 5, x: 300, y: 170, s: 1, speed: 26, dir: 1 }],
-    water: { y: 760 },
+    water: { y: 700 },
+    petals: 70, petalColor: SAKURA,
+    actors: [
+      { type: 'ship', path: [[640, 712], [1250, 704]], dur: 70, s: 0.95 },
+      { type: 'figure', x: 300, y: 742, s: 0.95, o: { hat: true } },
+      { type: 'figure', x: 330, y: 744, s: 0.85, o: { red: true }, ph: 1 },
+      { type: 'figure', x: 360, y: 742, s: 0.9, o: { staff: true }, ph: 2 },
+    ],
     build(r) {
-      const L0 = farRange(r, 470, { n: 11, hmax: 230 });
+      const L0 = farRange(r, 520, { n: 7, hmax: 240, hmin: 140, alpha: 0.35, tone: 130 });
       const L1 = layer(0.6);
-      karstCluster(L1.ctx, r, 330, 1050, 640, { n: 7, tone: 85, alpha: 0.6, hmax: 260, trees: 0.04 });
-      const L2 = layer(1);
-      const c = L2.ctx;
-      const cliff = mountain(c, r, { x0: 1060, x1: 1660, base: 800, peaks: [{ x: 1300, h: 610, w: 150, k: 3.4 }, { x: 1520, h: 520, w: 160, k: 3 }], tone: 32, alpha: 0.88, texture: 1.1, dots: 0.4, ridgeTrees: 0.03, folds: 8, foot: 30 });
-      pavilion(c, 1280, cliff.yAt(1280) + 32, 1.15);
-      maple(c, r, 1350, cliff.yAt(1350) + 40, 26, 90);
-      for (let i = 0; i < 8; i++) tinyTree(c, r, R(r, 1110, 1220), cliff.yAt(1160) + R(r, 30, 200), R(r, 14, 26));
-      // aldeia da fronteira
-      rocks(c, r, 760, 790, 360, 26, 0.55);
-      house(c, 700, 770, 1.1); house(c, 790, 776, 0.9);
-      figure(c, 860, 778, 0.9, { staff: true, hat: true });
-      horse(c, 930, 784, 0.55, 0.4, -1, 0.9, { still: true });
-      const L3 = layer(1);
-      const f = L3.ctx;
-      rocks(f, r, 120, 900, 380, 140, 0.9);
-      rocks(f, r, 380, 905, 260, 70, 0.75);
-      for (let i = 0; i < 5; i++) bamboo(f, r, 30 + i * 46 + R(r, -10, 10), 900, R(r, 600, 880), { lean: R(r, 0.05, 0.22), w: R(r, 8, 12) });
-      for (let i = 0; i < 3; i++) bamboo(f, r, 1500 + i * 40, 900, R(r, 220, 330), { lean: -R(r, 0.1, 0.4), w: 6, leaf: 0.8 });
-      waterLines(L2.ctx, r, 770, 880, 0.1);
-      return [
-        { c: L0.c, depth: 0.15 }, { mist: 0, y: 520, h: 260, alpha: 0.9, speed: 6 },
-        { c: L1.c, depth: 0.35 }, { mist: 1, y: 660, h: 220, alpha: 0.8, speed: 10 },
-        { c: L2.c, depth: 0.6 }, { reflect: true },
-        { c: L3.c, depth: 1, front: true },
-      ];
-    },
-  },
-  /* II · O cavalo foge: pinheiro no penhasco, o cavalo some no horizonte */
-  {
-    id: 'fuga', seed: 23, bg: PAPER,
-    birds: [{ n: 4, x: 900, y: 150, s: 0.9, speed: 30, dir: 1 }],
-    water: { y: 640 },
-    horses: [{ path: [[560, 620], [1560, 600]], s: 0.42, dur: 14, dir: 1, shrink: 0.5 }],
-    build(r) {
-      const L0 = farRange(r, 520, { n: 8, hmax: 260, alpha: 0.35, tone: 140 });
-      const L1 = layer(0.6);
-      karstCluster(L1.ctx, r, 900, 1500, 640, { n: 6, tone: 90, alpha: 0.55, hmax: 230 });
-      boat(L1.ctx, 1180, 690, 0.9);
-      rocks(L1.ctx, r, 1250, 650, 140, 20, 0.5);
+      mountain(L1.ctx, r, { x0: 700, x1: 1700, base: 690, peaks: [{ x: 1000, h: 230, w: 240 }, { x: 1350, h: 320, w: 220 }, { x: 1600, h: 200, w: 180 }], tone: 70, alpha: 0.65, texture: 0.6, dots: 0.3, ridgeTrees: 0.03, foot: 20 });
+      for (let i = 0; i < 9; i++) house(L1.ctx, R(r, 820, 1500), R(r, 682, 694), R(r, 0.5, 0.8));
       const L2 = layer(1), c = L2.ctx;
-      const cliff = mountain(c, r, { x0: -60, x1: 480, base: 900, peaks: [{ x: 160, h: 640, w: 210, k: 3 }, { x: 380, h: 420, w: 90, k: 3 }], tone: 30, alpha: 0.9, texture: 1.2, dots: 0.5, folds: 9, foot: 10 });
-      pavilion(c, 210, cliff.yAt(210) + 30, 1.1);
-      maple(c, r, 300, cliff.yAt(300) + 60, 40, 180);
-      pine(c, r, 330, cliff.yAt(330) + 20, 300, { lean: 0.9, side: 1, branches: 7 });
-      waterLines(c, r, 650, 880, 0.12);
+      const hill = mountain(c, r, { x0: 1180, x1: 1700, base: 720, peaks: [{ x: 1420, h: 360, w: 170, k: 3 }], tone: 32, alpha: 0.85, texture: 1, dots: 0.4, foot: 10 });
+      pavilion(c, 1420, hill.yAt(1420) + 30, 1.05);
+      floweringTree(c, r, 1330, hill.yAt(1330) + 40, 140, SAKURA);
+      floweringTree(c, r, 1520, hill.yAt(1520) + 30, 120, SAKURA);
+      // cais de madeira
+      c.fillStyle = ink(0.85); c.fillRect(150, 744, 420, 7);
+      for (let i = 0; i < 12; i++) c.fillRect(160 + i * 36, 750, 4, 28);
+      waterLines(c, r, 712, 880, 0.1);
+      const L3 = layer(1), f = L3.ctx;
+      rocks(f, r, 80, 900, 300, 110, 0.9);
+      floweringTree(f, r, 120, 860, 560, SAKURA, { lean: 0.25, depth: 4, n: 80 });
       return [
         { c: L0.c, depth: 0.15 }, { mist: 0, y: 560, h: 240, alpha: 0.85, speed: 7 },
-        { c: L1.c, depth: 0.4 }, { reflect: true }, { mist: 1, y: 660, h: 160, alpha: 0.55, speed: 12 },
-        { c: L2.c, depth: 0.85, front: true },
+        { c: L1.c, depth: 0.4 }, { mist: 1, y: 700, h: 120, alpha: 0.5, speed: 12 },
+        { c: L2.c, depth: 0.6 }, { actors: true }, { reflect: true },
+        { c: L3.c, depth: 1, front: true, sway: { x: 120, y: 860, amp: 0.025, speed: 0.8 } },
       ];
     },
   },
-  /* III · O retorno: pilares de pedra no mar de nuvens, dois cavalos voltam */
+  /* II · A travessia: 52 dias de mar */
   {
-    id: 'retorno', seed: 37, bg: PAPER,
-    birds: [{ n: 3, x: 200, y: 140, s: 0.8, speed: 22, dir: 1 }],
-    horses: [{ path: [[1500, 742], [250, 742]], s: 0.6, dur: 16, dir: -1 }, { path: [[1600, 752], [350, 752]], s: 0.75, dur: 16, dir: -1, lag: 0.9 }],
+    id: 'mar', seed: 23, bg: ['#ebe8e1', '#dcd8cf'],
+    sun: { x: 1180, y: 250, r: 30, color: '#d9b28a' },
+    birds: [{ n: 3, x: 700, y: 230, s: 1.2, speed: 30, dir: -1 }],
+    actors: [{ type: 'ship', path: [[520, 690], [1000, 694]], dur: 90, s: 1.25, rock: 1 }],
     build(r) {
-      const L0 = farRange(r, 420, { n: 14, hmax: 240, k: 3, alpha: 0.4 });
-      const L1 = layer(0.5);
-      karstCluster(L1.ctx, r, 100, 1500, 560, { n: 14, tone: 95, alpha: 0.55, hmax: 300, wmax: 40 });
+      const L0 = farRange(r, 600, { n: 4, hmax: 70, hmin: 30, alpha: 0.25, tone: 150 });
+      return [
+        { c: L0.c, depth: 0.1 }, { mist: 0, y: 580, h: 160, alpha: 0.7, speed: 9 },
+        { waves: { y0: 600, y1: 700, rows: 5, amp: 9 } },
+        { actors: true },
+        { waves: { y0: 712, y1: 960, rows: 7, amp: 38 } },
+        { mist: 1, y: 880, h: 200, alpha: 0.6, speed: 22 },
+      ];
+    },
+  },
+  /* III · A chegada: Santos e a Serra do Mar */
+  {
+    id: 'serra', seed: 37, bg: PAPER,
+    birds: [{ n: 4, x: 200, y: 150, s: 0.8, speed: 22, dir: 1 }],
+    actors: [{ type: 'train', path: [[1460, 770], [380, 560]], dur: 26, s: 0.62 }],
+    build(r) {
+      const L0 = farRange(r, 430, { n: 8, hmax: 300, hmin: 180, k: 2.4, alpha: 0.4 });
+      const L1 = layer(0.55);
+      mountain(L1.ctx, r, { x0: -80, x1: 1700, base: 640, peaks: [{ x: 250, h: 380, w: 260 }, { x: 760, h: 300, w: 240 }, { x: 1250, h: 420, w: 300 }], tone: 70, alpha: 0.6, texture: 0.5, dots: 0.6, dotDepth: 160, ridgeTrees: 0.05, foot: 30 });
       const L2 = layer(1), c = L2.ctx;
-      karstCluster(c, r, 500, 1350, 720, { n: 8, tone: 38, alpha: 0.85, hmin: 200, hmax: 420, wmin: 30, wmax: 55, trees: 0.05 });
-      const L3 = layer(1), f = L3.ctx;
-      mountain(f, r, { x0: -80, x1: 1700, base: 900, peaks: [{ x: 200, h: 170, w: 300 }, { x: 900, h: 140, w: 500 }, { x: 1500, h: 180, w: 260 }], tone: 35, alpha: 0.85, texture: 0.6, dots: 0.4, foot: 0, rough: 30 });
-      pine(f, r, 110, 780, 330, { lean: 0.7, side: 1, branches: 6 });
+      const m = mountain(c, r, { x0: -80, x1: 1700, base: 900, peaks: [{ x: 300, h: 420, w: 380 }, { x: 1100, h: 260, w: 420 }, { x: 1600, h: 380, w: 200 }], tone: 35, alpha: 0.8, texture: 0.5, dots: 0.9, dotDepth: 260, dotSize: 1.6, foot: 0 });
+      for (let i = 0; i < 26; i++) { const x = R(r, 0, 1600); palm(c, r, x, m.yAt(x) + R(r, 20, 140), R(r, 40, 90), { alpha: 0.75 }); }
+      // trilho da ferrovia Santos–Jundiaí
+      c.strokeStyle = ink(0.75); c.lineWidth = 2;
+      c.beginPath(); c.moveTo(1600, 800); c.lineTo(300, 545); c.stroke();
+      c.lineWidth = 1;
+      for (let i = 0; i < 70; i++) { const u = i / 70, x = 1600 - 1300 * u, y = 800 - 255 * u; c.beginPath(); c.moveTo(x - 3, y + 4); c.lineTo(x + 3, y - 4); c.stroke(); }
+      const P = layer(1);
+      palm(P.ctx, r, 90, 900, 420, { lean: 0.3 }); palm(P.ctx, r, 1520, 900, 360, { lean: -0.25 }); palm(P.ctx, r, 1440, 910, 260, { lean: -0.4 });
       return [
         { c: L0.c, depth: 0.12 }, { mist: 0, y: 470, h: 260, alpha: 0.95, speed: 6 },
-        { c: L1.c, depth: 0.3 }, { mist: 1, y: 620, h: 280, alpha: 0.95, speed: 9 },
-        { c: L2.c, depth: 0.55 }, { mist: 0, y: 780, h: 260, alpha: 0.9, speed: 14 },
-        { horses: true },
-        { c: L3.c, depth: 0.9 },
+        { c: L1.c, depth: 0.3 }, { mist: 1, y: 640, h: 220, alpha: 0.85, speed: 10 },
+        { c: L2.c, depth: 0.55 }, { actors: true }, { mist: 0, y: 860, h: 220, alpha: 0.8, speed: 15 },
+        { c: P.c, depth: 0.9, sway: { x: 800, y: 900, amp: 0.02, speed: 0.7 } },
       ];
     },
   },
-  /* IV · A queda: outono, cachoeira e folhas vermelhas */
+  /* IV · O café: fileiras nos morros, a casa da fazenda */
   {
-    id: 'queda', seed: 41, bg: PAPER, petals: 70,
+    id: 'cafe', seed: 41, bg: ['#f1ece2', '#e8e1d4'],
+    sun: { x: 1350, y: 200, r: 26, color: '#e2a65a' },
+    birds: [{ n: 3, x: 1100, y: 200, s: 0.7, speed: 20, dir: -1 }],
+    actors: [
+      { type: 'figure', x: 640, y: 760, s: 1.1, o: { hat: true }, work: true },
+      { type: 'figure', x: 720, y: 772, s: 1.05, o: { hat: true, red: true }, work: true, ph: 1.4 },
+      { type: 'figure', x: 860, y: 790, s: 1.15, o: { hat: true }, work: true, ph: 2.2 },
+    ],
     build(r) {
-      const L0 = farRange(r, 380, { n: 9, hmax: 200, k: 3, alpha: 0.35 });
-      const L1 = layer(0.55);
-      karstCluster(L1.ctx, r, 820, 1600, 600, { n: 9, tone: 75, alpha: 0.6, hmax: 320 });
+      const L0 = farRange(r, 420, { n: 8, hmax: 140, hmin: 70, alpha: 0.3, tone: 140 });
+      const L1 = layer(0.6);
+      plantedHill(L1.ctx, r, -80, 1700, 560, [{ x: 300, h: 190, w: 380 }, { x: 1000, h: 230, w: 420 }, { x: 1500, h: 170, w: 260 }], { tone: 90, alpha: 0.45, bush: 4, gap: 16, step: 10, rowAlpha: 0.6 });
       const L2 = layer(1), c = L2.ctx;
-      const cl = mountain(c, r, { x0: -60, x1: 860, base: 860, peaks: [{ x: 120, h: 780, w: 150, k: 4 }, { x: 250, h: 560, w: 90, k: 3 }, { x: 520, h: 700, w: 140, k: 4.5 }, { x: 680, h: 480, w: 90, k: 3 }], tone: 30, alpha: 0.9, texture: 1.2, dots: 0.45, folds: 10, foot: 0 });
-      waterfall(c, r, 392, cl.yAt(392) + 10, 70, 720);
-      for (let i = 0; i < 6; i++) rocks(c, r, R(r, 250, 820), R(r, 600, 820), R(r, 90, 180), R(r, 20, 50), 0.85);
-      maple(c, r, 120, 330, 70, 300); maple(c, r, 200, 560, 90, 380); maple(c, r, 680, 250, 40, 150);
-      // o filho caído junto às pedras, o cavalo ao lado
-      c.save(); c.translate(980, 812); c.rotate(-1.45); figure(c, 0, 0, 0.95, { red: true }); c.restore();
-      horse(c, 1060, 822, 0.62, 1.2, -1, 0.9, { still: true });
-      rocks(c, r, 1010, 840, 300, 26, 0.6);
+      const h2 = plantedHill(c, r, -80, 1700, 900, [{ x: 400, h: 330, w: 520 }, { x: 1300, h: 260, w: 460 }], { tone: 60, alpha: 0.5, bush: 7, gap: 24, step: 15 });
+      farmhouse(c, 1260, h2.yAt(1260) + 30, 1.1);
+      floweringTree(c, r, 1400, h2.yAt(1400) + 40, 200, [150, 90, 160], { n: 50 });
       return [
-        { c: L0.c, depth: 0.12 }, { mist: 0, y: 470, h: 260, alpha: 0.8, speed: 5 },
-        { c: L1.c, depth: 0.35 }, { mist: 1, y: 640, h: 300, alpha: 0.95, speed: 9 },
-        { c: L2.c, depth: 0.75 }, { mist: 0, y: 870, h: 200, alpha: 0.7, speed: 16 },
+        { c: L0.c, depth: 0.12 }, { mist: 0, y: 470, h: 180, alpha: 0.7, speed: 5 },
+        { c: L1.c, depth: 0.35 }, { mist: 1, y: 600, h: 200, alpha: 0.6, speed: 9 },
+        { c: L2.c, depth: 0.7 }, { actors: true },
       ];
     },
   },
-  /* V · A guerra: pôr do sol dourado, cavaleiros cruzam o horizonte */
-  {
-    id: 'guerra', seed: 53, bg: ['#f3dcaa', '#e8dcc2'], warm: true,
-    sun: { x: 1250, y: 330, r: 38, color: '#e8a34a' },
-    water: { y: 640 },
-    horses: Array.from({ length: 7 }, (_, i) => ({ path: [[-120, 618], [1700, 618]], s: 0.4, dur: 22, dir: 1, lag: i * 0.55, rider: true })),
-    build(r) {
-      const L0 = farRange(r, 560, { n: 10, hmax: 260, k: 3, alpha: 0.4, tone: 110 });
-      const L1 = layer(0.6), m = L1.ctx;
-      karstCluster(m, r, 150, 800, 620, { n: 7, tone: 60, alpha: 0.7, hmax: 300 });
-      for (let i = 0; i < 5; i++) rocks(m, r, R(r, 600, 1500), R(r, 650, 700), R(r, 60, 160), R(r, 14, 30), 0.65);
-      const L2 = layer(1), c = L2.ctx;
-      mountain(c, r, { x0: -80, x1: 420, base: 900, peaks: [{ x: 100, h: 420, w: 160, k: 3 }], tone: 30, alpha: 0.9, texture: 1, dots: 0.4, foot: 0 });
-      pine(c, r, 240, 560, 280, { lean: 0.8, side: 1 });
-      maple(c, r, 300, 600, 30, 110);
-      waterLines(c, r, 660, 880, 0.1);
-      return [
-        { c: L0.c, depth: 0.12 }, { mist: 0, y: 600, h: 200, alpha: 0.65, speed: 6 },
-        { horses: true },
-        { c: L1.c, depth: 0.35 }, { reflect: true },
-        { c: L2.c, depth: 0.85, front: true },
-      ];
-    },
-  },
-  /* VI · Nove em cada dez: ponte em arco, sol vermelho, silêncio */
-  {
-    id: 'ponte', seed: 67, bg: ['#efebe4', '#e6e1d8'],
-    sun: { x: 1300, y: 380, r: 22, color: '#d4483b' },
-    water: { y: 600 },
-    birds: [{ n: 2, x: 600, y: 210, s: 0.7, speed: 16, dir: -1 }],
-    build(r) {
-      const L0 = farRange(r, 500, { n: 7, hmax: 220, alpha: 0.3, tone: 140 });
-      const L1 = layer(1), c = L1.ctx;
-      bridge(c, 520, 560, 380, 55);
-      mountain(c, r, { x0: 760, x1: 1250, base: 600, peaks: [{ x: 1000, h: 60, w: 200 }], tone: 40, alpha: 0.85, texture: 0.5, dots: 0.6, foot: 0, ridgeTrees: 0.05, treeSize: 1.6 });
-      pavilion(c, 1030, 552, 0.9);
-      for (let i = 0; i < 6; i++) tinyTree(c, r, R(r, 800, 1200), R(r, 555, 575), R(r, 20, 40));
-      for (let i = 0; i < 4; i++) rocks(c, r, R(r, 1300, 1550), 605, R(r, 40, 100), R(r, 8, 22), 0.6);
-      const L2 = layer(1), f = L2.ctx;
-      mountain(f, r, { x0: -80, x1: 340, base: 900, peaks: [{ x: 60, h: 520, w: 180, k: 3 }], tone: 30, alpha: 0.9, texture: 1, dots: 0.4, foot: 0 });
-      pine(f, r, 90, 420, 360, { lean: 0.6, side: 1 });
-      maple(f, r, 230, 480, 40, 160);
-      rocks(f, r, 330, 700, 200, 40, 0.8);
-      waterLines(L1.ctx, r, 620, 880, 0.12);
-      return [
-        { c: L0.c, depth: 0.12 }, { mist: 0, y: 540, h: 160, alpha: 0.75, speed: 5 },
-        { c: L1.c, depth: 0.4 }, { reflect: true },
-        { c: L2.c, depth: 0.85, front: true },
-      ];
-    },
-  },
-  /* VII · Pai e filho: lua sobre o lago */
+  /* V · A saudade: lua sobre o lago, araucárias */
   {
     id: 'lua', seed: 79, bg: ['#d9d6cf', '#cfcbc3'],
     moon: { x: 980, y: 210, r: 46 },
     water: { y: 650 },
+    fireflies: 40,
+    actors: [
+      { type: 'figure', x: 560, y: 676, s: 1, o: { hat: true } },
+      { type: 'figure', x: 590, y: 678, s: 0.95, o: { red: true }, ph: 1.3 },
+    ],
     build(r) {
-      const L0 = farRange(r, 560, { n: 9, hmax: 240, alpha: 0.35, tone: 110, k: 3 });
+      const L0 = farRange(r, 560, { n: 9, hmax: 200, alpha: 0.35, tone: 110 });
       const L1 = layer(0.7), m = L1.ctx;
-      karstCluster(m, r, 1150, 1560, 650, { n: 5, tone: 45, alpha: 0.8, hmax: 380, wmax: 60 });
-      karstCluster(m, r, 600, 820, 655, { n: 3, tone: 60, alpha: 0.7, hmax: 200 });
+      mountain(m, r, { x0: 1000, x1: 1700, base: 650, peaks: [{ x: 1300, h: 220, w: 260 }], tone: 50, alpha: 0.7, texture: 0.6, dots: 0.4, foot: 0 });
+      for (let i = 0; i < 9; i++) araucaria(m, r, R(r, 1050, 1600), R(r, 560, 650), R(r, 90, 170), { alpha: 0.7 });
       const L2 = layer(1), c = L2.ctx;
-      const cl = mountain(c, r, { x0: -80, x1: 520, base: 760, peaks: [{ x: 200, h: 420, w: 170, k: 3.2 }, { x: 420, h: 200, w: 90, k: 3 }], tone: 28, alpha: 0.92, texture: 1.1, dots: 0.5, foot: 0, folds: 8 });
-      pavilion(c, 230, cl.yAt(230) + 30, 0.9);
-      pine(c, r, 60, cl.yAt(60) + 20, 260, { lean: 0.5, side: 1 });
-      maple(c, r, 300, cl.yAt(300) + 50, 30, 100);
-      // na margem: pai, filho de muleta e o cavalo, olhando a lua
+      const cl = mountain(c, r, { x0: -80, x1: 520, base: 760, peaks: [{ x: 200, h: 300, w: 220 }], tone: 28, alpha: 0.9, texture: 1, dots: 0.5, foot: 0 });
       rocks(c, r, 600, 690, 330, 32, 0.75);
-      figure(c, 560, 676, 1, { staff: true, hat: true });
-      figure(c, 590, 678, 1, { crutch: true, red: true });
-      horse(c, 680, 684, 0.6, 0.9, 1, 0.88, { still: true });
+      house(c, 300, cl.yAt(300) + 40, 1.3);
+      const P = layer(1);
+      araucaria(P.ctx, r, 120, cl.yAt(120) + 30, 380);
+      araucaria(P.ctx, r, 420, cl.yAt(420) + 30, 260);
       return [
+        { mist: 1, y: 250, h: 90, alpha: 0.3, speed: 14 },
         { c: L0.c, depth: 0.12 }, { mist: 0, y: 600, h: 180, alpha: 0.6, speed: 5 },
-        { c: L1.c, depth: 0.4 }, { c: L2.c, depth: 0.6 }, { reflect: true },
+        { c: L1.c, depth: 0.4 }, { c: L2.c, depth: 0.6 },
+        { c: P.c, depth: 0.6, sway: { x: 200, y: 700, amp: 0.02, speed: 0.5 } },
+        { actors: true }, { reflect: true },
       ];
     },
   },
-  /* VIII · A lição: neve, mar de nuvens, o selo */
+  /* VI · As raízes: chá no Vale do Ribeira, ipês-amarelos */
   {
-    id: 'licao', seed: 97, bg: ['#f2f0eb', '#e9e6df'], snow: 160, seal: ['塞', '翁'],
+    id: 'raizes', seed: 53, bg: ['#f3dcaa', '#e8dcc2'], warm: true,
+    sun: { x: 1250, y: 300, r: 40, color: '#e8a34a' },
+    petals: 60, petalColor: IPE,
+    birds: [{ n: 4, x: 400, y: 200, s: 0.8, speed: 20, dir: 1 }],
+    actors: [
+      { type: 'figure', x: 780, y: 742, s: 1, o: { hat: true }, work: true },
+      { type: 'figure', x: 860, y: 748, s: 0.8, o: { red: true }, ph: 2 },
+    ],
+    build(r) {
+      const L0 = farRange(r, 520, { n: 8, hmax: 220, alpha: 0.35, tone: 110 });
+      const L1 = layer(0.6);
+      plantedHill(L1.ctx, r, -80, 1700, 640, [{ x: 400, h: 220, w: 360 }, { x: 1150, h: 180, w: 400 }], { tone: 70, alpha: 0.45, bush: 5, gap: 14, step: 9 });
+      const L2 = layer(1), c = L2.ctx;
+      const h2 = plantedHill(c, r, -80, 1700, 900, [{ x: 700, h: 200, w: 700 }], { tone: 50, alpha: 0.5, bush: 8, gap: 22, step: 16 });
+      house(c, 980, h2.yAt(980) + 30, 1.4);
+      const P = layer(1);
+      floweringTree(P.ctx, r, 250, 880, 520, IPE, { depth: 4, n: 90, lean: 0.15 });
+      floweringTree(P.ctx, r, 1450, 900, 420, IPE, { depth: 4, n: 80, lean: -0.2 });
+      return [
+        { c: L0.c, depth: 0.12 }, { mist: 0, y: 580, h: 200, alpha: 0.65, speed: 6 },
+        { c: L1.c, depth: 0.35 }, { mist: 1, y: 680, h: 160, alpha: 0.5, speed: 9 },
+        { c: L2.c, depth: 0.7 }, { actors: true },
+        { c: P.c, depth: 0.9, front: true, sway: { x: 800, y: 900, amp: 0.02, speed: 0.8 } },
+      ];
+    },
+  },
+  /* VII · As gerações: Liberdade, lanternas, a cidade na névoa */
+  {
+    id: 'liberdade', seed: 67, bg: ['#efebe4', '#e6e1d8'],
+    sun: { x: 1300, y: 330, r: 24, color: '#d4483b' },
+    water: { y: 600 },
+    birds: [{ n: 2, x: 600, y: 210, s: 0.7, speed: 16, dir: -1 }],
+    actors: [
+      { type: 'walker', path: [[350, 540], [700, 540]], dur: 22, s: 0.8 },
+      { type: 'walker', path: [[690, 540], [340, 540]], dur: 26, s: 0.7, ph: 9, o: { red: true } },
+      { type: 'lanterns', a: [-20, 70], b: [1620, 110], n: 16, sag: 70 },
+      { type: 'lanterns', a: [-20, 170], b: [1620, 140], n: 12, sag: 50 },
+    ],
+    build(r) {
+      const L0 = layer(0.5);
+      skyline(L0.ctx, r, -20, 1640, 520, { hmax: 200, alpha: 0.32 });
+      const L1 = layer(1), c = L1.ctx;
+      bridge(c, 520, 560, 380, 55);
+      mountain(c, r, { x0: 760, x1: 1250, base: 600, peaks: [{ x: 1000, h: 60, w: 200 }], tone: 40, alpha: 0.85, texture: 0.5, dots: 0.6, foot: 0, ridgeTrees: 0.05, treeSize: 1.6 });
+      pavilion(c, 1030, 552, 0.9);
+      for (let i = 0; i < 4; i++) rocks(c, r, R(r, 1300, 1550), 605, R(r, 40, 100), R(r, 8, 22), 0.6);
+      waterLines(c, r, 620, 880, 0.12);
+      const L2 = layer(1), f = L2.ctx;
+      mountain(f, r, { x0: -80, x1: 300, base: 900, peaks: [{ x: 40, h: 420, w: 160, k: 3 }], tone: 30, alpha: 0.9, texture: 1, dots: 0.4, foot: 0 });
+      floweringTree(f, r, 1500, 900, 380, SAKURA, { lean: -0.2 });
+      return [
+        { c: L0.c, depth: 0.12 }, { mist: 0, y: 470, h: 260, alpha: 0.9, speed: 5 }, { mist: 1, y: 540, h: 160, alpha: 0.8, speed: 8 },
+        { c: L1.c, depth: 0.4 }, { reflect: true }, { actors: true },
+        { c: L2.c, depth: 0.85, front: true, sway: { x: 1500, y: 900, amp: 0.02, speed: 0.6 } },
+      ];
+    },
+  },
+  /* VIII · A lição: cerejeira e ipê lado a lado */
+  {
+    id: 'licao', seed: 97, bg: ['#f2f0eb', '#e9e6df'], seal: ['日', '伯'],
+    petals: 50, petalColor: SAKURA, petals2: 40, petalColor2: IPE,
+    birds: [{ n: 4, x: 900, y: 180, s: 0.8, speed: 22, dir: 1 }],
     build(r) {
       const L0 = farRange(r, 420, { n: 9, hmax: 230, alpha: 0.3, tone: 150, k: 3 });
       const L1 = layer(0.6);
-      karstCluster(L1.ctx, r, 750, 1550, 560, { n: 7, tone: 70, alpha: 0.65, hmax: 330, snow: true });
+      karstCluster(L1.ctx, r, 650, 1450, 560, { n: 7, tone: 70, alpha: 0.6, hmax: 300 });
       const L2 = layer(1), c = L2.ctx;
-      const cl = mountain(c, r, { x0: -80, x1: 760, base: 900, peaks: [{ x: 220, h: 560, w: 200, k: 3 }, { x: 520, h: 430, w: 140, k: 3.5 }], tone: 30, alpha: 0.9, texture: 1.1, dots: 0.4, foot: 0, folds: 9, snow: true });
-      pavilion(c, 230, cl.yAt(230) + 32, 1, { snow: true });
-      pavilion(c, 520, cl.yAt(520) + 30, 0.7, { snow: true, tiers: 1 });
-      waterfall(c, r, 400, cl.yAt(400) + 40, 50, 760);
-      pine(c, r, 40, cl.yAt(40) + 20, 300, { lean: 0.8, side: 1, snow: true });
-      for (let i = 0; i < 10; i++) tinyTree(c, r, R(r, 100, 700), cl.yAt(R(r, 100, 700)) + R(r, 20, 160), R(r, 16, 30));
+      const cl = mountain(c, r, { x0: 300, x1: 1300, base: 900, peaks: [{ x: 800, h: 360, w: 260, k: 3 }], tone: 30, alpha: 0.88, texture: 1.1, dots: 0.4, foot: 0, folds: 8 });
+      pavilion(c, 800, cl.yAt(800) + 32, 1.1);
+      const fy = cl.yAt(930) + 30;
+      waterfall(c, r, 930, fy, 40, 820);
+      this.falls = [{ x: 930, top: fy, w: 34, bottom: 820 }];
+      for (let i = 0; i < 10; i++) tinyTree(c, r, R(r, 550, 1100), cl.yAt(R(r, 550, 1100)) + R(r, 20, 160), R(r, 16, 30));
+      const P = layer(1);
+      floweringTree(P.ctx, r, 200, 900, 600, SAKURA, { depth: 4, n: 90, lean: 0.2 });
+      floweringTree(P.ctx, r, 1420, 900, 560, IPE, { depth: 4, n: 90, lean: -0.2 });
       return [
         { c: L0.c, depth: 0.1 }, { mist: 0, y: 470, h: 220, alpha: 0.95, speed: 5 },
         { c: L1.c, depth: 0.35 }, { mist: 1, y: 640, h: 320, alpha: 1, speed: 8 },
-        { c: L2.c, depth: 0.8 }, { mist: 0, y: 860, h: 260, alpha: 0.95, speed: 12 },
+        { c: L2.c, depth: 0.7 }, { falls: true }, { mist: 0, y: 860, h: 220, alpha: 0.8, speed: 12 },
+        { c: P.c, depth: 0.95, front: true, sway: { x: 800, y: 900, amp: 0.022, speed: 0.7 } },
       ];
     },
   },
@@ -248,7 +286,8 @@ const cache = new Map();
 export function getScene(i) {
   if (!cache.has(i)) {
     const s = SCENES[i];
-    cache.set(i, { ...s, layers: s.build(rng(s.seed)) });
+    const layers = s.build(rng(s.seed));
+    cache.set(i, { ...s, layers });
   }
   return cache.get(i);
 }

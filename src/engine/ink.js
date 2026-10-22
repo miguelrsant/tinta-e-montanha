@@ -42,6 +42,8 @@ function layer(scale = 1) {
 }
 
 const ink = (a, t = 24) => `rgba(${t},${t - 2},${t - 5},${a})`;
+// verde-escuro de folhagem (tinta com pigmento verde)
+const leafInk = (a, v = 0) => `rgba(${22 + v},${48 + v},${33 + v},${a})`;
 
 /* ---------- Montanha ---------- */
 function mountain(ctx, r, o) {
@@ -164,7 +166,7 @@ function mountain(ctx, r, o) {
     const x = R(r, o.x0, o.x1);
     const y = yAt(x) + Math.pow(r(), 2) * (o.dotDepth ?? 70);
     const s = R(r, 0.8, 3.4) * (o.dotSize ?? 1);
-    ctx.fillStyle = ink(R(r, 0.4, 0.9) * alpha, tone - 20);
+    ctx.fillStyle = r() < (o.green ?? 0.55) ? leafInk(R(r, 0.45, 0.95) * alpha, tone > 60 ? 30 : 0) : ink(R(r, 0.4, 0.9) * alpha, tone - 20);
     ctx.beginPath(); ctx.ellipse(x, y, s * 1.5, s, R(r, 0, 3), 0, Math.PI * 2); ctx.fill();
   }
   ctx.restore();
@@ -200,7 +202,7 @@ function mountain(ctx, r, o) {
 }
 
 function tinyTree(ctx, r, x, y, h, a = 1) {
-  ctx.strokeStyle = ink(0.75 * a); ctx.lineWidth = Math.max(0.8, h * 0.08);
+  ctx.strokeStyle = leafInk(0.8 * a); ctx.lineWidth = Math.max(0.8, h * 0.08);
   ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + R(r, -1, 1), y - h); ctx.stroke();
   const tiers = 3 + Math.floor(r() * 3);
   for (let t = 0; t < tiers; t++) {
@@ -212,13 +214,13 @@ function tinyTree(ctx, r, x, y, h, a = 1) {
 
 /* ---------- Pinheiro do Huangshan ---------- */
 function plate(ctx, r, cx, cy, s, a = 0.85, snow = false) {
-  ctx.fillStyle = ink(a * 0.75, 18);
+  ctx.fillStyle = leafInk(a * 0.8);
   ctx.beginPath(); ctx.ellipse(cx, cy, s * 0.95, s * 0.28, R(r, -0.08, 0.08), 0, Math.PI * 2); ctx.fill();
   const n = Math.round(s * 3);
   for (let i = 0; i < n; i++) {
     const px = cx + R(r, -0.9, 0.9) * s, ang = R(r, -Math.PI * 0.9, -Math.PI * 0.1);
     const l = R(r, 0.15, 0.42) * s;
-    ctx.strokeStyle = ink(R(r, 0.5, 0.95) * a, 14);
+    ctx.strokeStyle = r() < 0.7 ? leafInk(R(r, 0.55, 0.95) * a, R(r, -10, 14)) : ink(R(r, 0.5, 0.9) * a, 14);
     ctx.lineWidth = R(r, 0.8, 1.8);
     ctx.beginPath(); ctx.moveTo(px, cy + s * 0.08); ctx.lineTo(px + Math.cos(ang) * l, cy + Math.sin(ang) * l * 0.7); ctx.stroke();
   }
@@ -268,7 +270,7 @@ function pine(ctx, r, x, y, h, o = {}) {
 /* ---------- Bambu ---------- */
 function leaf(ctx, x, y, ang, len, wid, a) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
-  ctx.fillStyle = ink(a, 16);
+  ctx.fillStyle = leafInk(a, (len * 7) % 18 - 6);
   ctx.beginPath(); ctx.moveTo(0, 0);
   ctx.quadraticCurveTo(len * 0.35, -wid, len, 0);
   ctx.quadraticCurveTo(len * 0.35, wid * 0.55, 0, 0);
@@ -428,4 +430,123 @@ function waterfall(ctx, r, x, top, w, bottom) {
   }
 }
 
-export const Ink = { W, H, rng, R, noise1, fbm, canvas, layer, ink, mountain, tinyTree, pine, plate, bamboo, leaf, pavilion, roof, house, bridge, boat, rocks, maple, waterfall };
+/* ---------- Brasil e Japão ---------- */
+// Flores em cachos: cerejeira (rosa) e ipê-amarelo
+function blossom(ctx, r, x, y, s, n = 160, rgb = [236, 170, 180], a = 0.9) {
+  for (let i = 0; i < n; i++) {
+    const ang = R(r, 0, Math.PI * 2), d = Math.pow(r(), 0.6) * s;
+    const k = R(r, 0.82, 1.08);
+    ctx.fillStyle = `rgba(${rgb[0] * k | 0},${rgb[1] * k | 0},${rgb[2] * k | 0},${R(r, 0.45, 0.95) * a})`;
+    ctx.beginPath(); ctx.arc(x + Math.cos(ang) * d * 1.4, y + Math.sin(ang) * d * 0.75, R(r, 1.6, 4.8), 0, Math.PI * 2); ctx.fill();
+  }
+}
+// Árvore florida: tronco de pincel + copas de flores
+function floweringTree(ctx, r, x, y, h, rgb, o = {}) {
+  const lean = o.lean ?? R(r, -0.2, 0.2);
+  ctx.strokeStyle = ink(0.88, 22); ctx.lineCap = 'round';
+  const tops = [];
+  const branch = (bx, by, ang, len, w, depth) => {
+    const ex = bx + Math.cos(ang) * len, ey = by + Math.sin(ang) * len;
+    ctx.lineWidth = w;
+    ctx.beginPath(); ctx.moveTo(bx, by);
+    ctx.quadraticCurveTo(bx + Math.cos(ang + 0.3) * len * 0.5, by + Math.sin(ang + 0.3) * len * 0.5, ex, ey); ctx.stroke();
+    if (depth <= 0) { tops.push([ex, ey]); return; }
+    branch(ex, ey, ang - R(r, 0.3, 0.7), len * R(r, 0.6, 0.8), w * 0.65, depth - 1);
+    branch(ex, ey, ang + R(r, 0.3, 0.7), len * R(r, 0.6, 0.8), w * 0.65, depth - 1);
+  };
+  branch(x, y, -Math.PI / 2 + lean, h * 0.42, h * 0.05, o.depth ?? 3);
+  for (const [tx, ty] of tops) {
+    for (let i = 0; i < (o.leaves ?? 26); i++) {
+      const an = R(r, 0, Math.PI * 2), d = Math.pow(r(), 0.7) * h * 0.15;
+      leaf(ctx, tx + Math.cos(an) * d * 1.3, ty + Math.sin(an) * d * 0.7, R(r, 0, Math.PI * 2), R(r, 8, 16) * (h / 300 + 0.5), R(r, 3, 5) * (h / 300 + 0.5), R(r, 0.6, 0.95));
+    }
+    blossom(ctx, r, tx, ty, h * 0.13, o.n ?? 70, rgb, o.alpha ?? 0.9);
+  }
+}
+// Palmeira (juçara/coqueiro) da Mata Atlântica
+function palm(ctx, r, x, y, h, o = {}) {
+  const lean = o.lean ?? R(r, -0.25, 0.25), a = o.alpha ?? 0.85;
+  const tx = x + lean * h, ty = y - h;
+  ctx.strokeStyle = ink(a, 26); ctx.lineWidth = Math.max(1.5, h * 0.03);
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + lean * h * 0.2, y - h * 0.5, tx, ty); ctx.stroke();
+  ctx.strokeStyle = leafInk(a);
+  for (let i = 0; i < 9; i++) {
+    const ang = -Math.PI / 2 + (i - 4) * 0.42 + R(r, -0.1, 0.1), len = h * R(r, 0.3, 0.45);
+    const ex = tx + Math.cos(ang) * len, ey = ty + Math.sin(ang) * len * 0.5 + len * 0.35;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(tx, ty); ctx.quadraticCurveTo(tx + Math.cos(ang) * len * 0.5, ty + Math.sin(ang) * len * 0.5 - 6, ex, ey); ctx.stroke();
+    for (let k = 1; k < 9; k++) {
+      const u = k / 9, px = tx + (ex - tx) * u, py = ty + (ey - ty) * u - Math.sin(u * Math.PI) * 6;
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + R(r, -4, 4), py + len * 0.18 * (1 - u * 0.5)); ctx.stroke();
+    }
+  }
+}
+// Araucária: tronco reto e galhos em candelabro com tufos nas pontas
+function araucaria(ctx, r, x, y, h, o = {}) {
+  const a = o.alpha ?? 0.88;
+  ctx.strokeStyle = ink(a, 22); ctx.lineCap = 'round';
+  ctx.lineWidth = Math.max(1.5, h * 0.035);
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + R(r, -3, 3), y - h); ctx.stroke();
+  const tiers = o.tiers ?? 4;
+  for (let i = 0; i < tiers; i++) {
+    const ty = y - h * (0.62 + 0.38 * i / tiers), spread = h * (0.42 - i * 0.07);
+    for (const side of [-1, 1]) {
+      const ex = x + side * spread, ey = ty - spread * 0.55;
+      ctx.lineWidth = Math.max(1, h * 0.014);
+      ctx.beginPath(); ctx.moveTo(x, ty); ctx.quadraticCurveTo(x + side * spread * 0.7, ty + spread * 0.12, ex, ey); ctx.stroke();
+      ctx.fillStyle = leafInk(a * 0.92);
+      ctx.strokeStyle = leafInk(a * 0.9, 8);
+      ctx.beginPath(); ctx.ellipse(ex, ey, spread * 0.32, spread * 0.13, side * -0.15, 0, Math.PI * 2); ctx.fill();
+      for (let k = 0; k < 14; k++) {
+        const px = ex + R(r, -0.3, 0.3) * spread, an = R(r, -Math.PI * 0.95, -Math.PI * 0.05);
+        ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(px, ey); ctx.lineTo(px + Math.cos(an) * spread * 0.14, ey + Math.sin(an) * spread * 0.14); ctx.stroke();
+      }
+    }
+  }
+  ctx.fillStyle = leafInk(a * 0.92);
+  ctx.beginPath(); ctx.ellipse(x, y - h, h * 0.08, h * 0.04, 0, 0, Math.PI * 2); ctx.fill();
+}
+// Prédios de São Paulo ao longe, na névoa
+function skyline(ctx, r, x0, x1, base, o = {}) {
+  let x = x0;
+  while (x < x1) {
+    const w = R(r, 18, 46), h = R(r, 40, o.hmax ?? 180) * (r() < 0.15 ? 1.6 : 1);
+    ctx.fillStyle = ink(R(r, 0.25, 0.5) * (o.alpha ?? 1), 70);
+    ctx.fillRect(x, base - h, w, h + 40);
+    ctx.fillStyle = 'rgba(240,236,228,0.35)';
+    for (let wy = base - h + 6; wy < base; wy += 9) for (let wx = x + 4; wx < x + w - 4; wx += 7) if (r() < 0.4) ctx.fillRect(wx, wy, 3, 4);
+    x += w + R(r, 1, 8);
+  }
+}
+
+// O navio Kasato Maru: casco escuro, chaminé, dois mastros
+function ship(ctx, x, y, s) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  ctx.fillStyle = ink(0.9, 20);
+  ctx.beginPath(); ctx.moveTo(-90, -14); ctx.lineTo(96, -18); ctx.quadraticCurveTo(84, 4, 70, 8); ctx.lineTo(-80, 8); ctx.quadraticCurveTo(-92, 0, -90, -14); ctx.fill();
+  ctx.fillStyle = 'rgba(236,231,222,0.95)';
+  ctx.fillRect(-50, -30, 80, 15);
+  ctx.fillStyle = ink(0.8); for (let i = 0; i < 7; i++) ctx.fillRect(-44 + i * 11, -26, 5, 5);
+  ctx.fillStyle = ink(0.92); ctx.fillRect(-8, -56, 14, 27);
+  ctx.fillStyle = 'rgba(155,43,43,0.95)'; ctx.fillRect(-8, -56, 14, 6);
+  ctx.strokeStyle = ink(0.85); ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-62, -14); ctx.lineTo(-62, -78); ctx.moveTo(58, -16); ctx.lineTo(58, -76); ctx.stroke();
+  ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(-88, -14); ctx.lineTo(-62, -78); ctx.lineTo(58, -76); ctx.lineTo(94, -18); ctx.stroke();
+  ctx.fillStyle = 'rgba(245,240,230,0.9)'; ctx.fillRect(-82, -6, 160, 2);
+  ctx.restore();
+}
+// Casa de fazenda: paredes caiadas, telhado de telha
+function farmhouse(ctx, x, y, s) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  ctx.fillStyle = 'rgba(244,240,232,0.98)'; ctx.fillRect(-60, -34, 120, 34);
+  ctx.strokeStyle = ink(0.55); ctx.lineWidth = 1; ctx.strokeRect(-60, -34, 120, 34);
+  ctx.fillStyle = ink(0.8); for (let i = 0; i < 6; i++) ctx.fillRect(-52 + i * 19, -26, 8, 12);
+  ctx.fillStyle = 'rgba(150,62,42,0.92)';
+  ctx.beginPath(); ctx.moveTo(-70, -32); ctx.lineTo(-48, -56); ctx.lineTo(48, -56); ctx.lineTo(70, -32); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(90,35,25,0.5)';
+  for (let i = 0; i < 14; i++) { ctx.beginPath(); ctx.moveTo(-60 + i * 9, -34); ctx.lineTo(-44 + i * 7, -55); ctx.stroke(); }
+  ctx.restore();
+}
+
+export const Ink = { W, H, rng, R, noise1, fbm, canvas, layer, ink, leafInk, mountain, tinyTree, pine, plate, bamboo, leaf, pavilion, roof, house, bridge, boat, rocks, maple, waterfall, blossom, floweringTree, palm, ship, farmhouse, araucaria, skyline };

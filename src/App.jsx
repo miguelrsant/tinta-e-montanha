@@ -35,7 +35,6 @@ function Equalizer({ music, on }) {
 
 export default function App() {
   const canvasRef = useRef(null);
-  const figureRef = useRef(null);
   const stageRef = useRef(null);
   const [music] = useState(() => new Music());
 
@@ -57,19 +56,15 @@ export default function App() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  // A pintura ocupa o maior 16:9 que cabe no espaço livre
+  // Mouse/toque movem a câmera (parallax entre as camadas)
   useEffect(() => {
-    const fig = figureRef.current, cv = canvasRef.current;
-    const fit = () => {
-      const cs = getComputedStyle(fig);
-      const width = fig.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-      const height = fig.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
-      const w = Math.max(0, Math.min(width, height * 16 / 9));
-      cv.style.width = `${w}px`; cv.style.height = `${w * 9 / 16}px`;
+    const onMove = (e) => {
+      const p = e.touches ? e.touches[0] : e;
+      stageRef.current?.setPointer((p.clientX / window.innerWidth) * 2 - 1, (p.clientY / window.innerHeight) * 2 - 1);
     };
-    const ro = new ResizeObserver(fit);
-    ro.observe(fig); fit();
-    return () => ro.disconnect();
+    window.addEventListener('pointermove', onMove, { passive: true });
+    window.addEventListener('touchmove', onMove, { passive: true });
+    return () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('touchmove', onMove); };
   }, []);
 
   // Rolagem → capítulo
@@ -136,6 +131,9 @@ export default function App() {
   return (
     <>
       <div className="scroll-track" style={{ height: `${STORY.length * 100}vh` }} />
+      <figure className="painting">
+        <canvas ref={canvasRef} role="img" aria-label="Pintura a tinta animada da cena atual" />
+      </figure>
       <main className="viewer">
         <header className="topbar">
           <button className="tag" onClick={() => goTo(0)} aria-label="Voltar ao início">
@@ -180,9 +178,7 @@ export default function App() {
           )}
         </section>
 
-        <figure className="painting" ref={figureRef}>
-          <canvas ref={canvasRef} role="img" aria-label="Pintura a tinta animada da cena atual" />
-        </figure>
+        <div className="spacer" />
 
         <div className="meta">
           <p className="caption">

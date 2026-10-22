@@ -2,9 +2,10 @@
    e faz a transição entre pinturas com uma máscara de tinta que se espalha. */
 import { Ink } from './ink.js';
 import { SCENES, getScene } from './scenes.js';
-import { mistSprite, drawMist, paperTexture, drawFlock, horse, makeParticles, drawPetals, drawSnow, seal } from './fx.js';
+import { mistSprite, drawMist, paperTexture, drawFlock, horse, figure, makeParticles, drawPetals, drawSnow, seal, drawLeaves, drawEmbers, drawFireflies, drawDust, drawFall, banner, drawWaves, drawTrain, drawLanterns } from './fx.js';
 
-const { W, H, canvas, rng } = Ink;
+const { W, H, canvas, rng, ship } = Ink;
+const ease = (x) => 1 - Math.pow(1 - Math.max(0, Math.min(1, x)), 3);
 const TRANSITION = 2.4;
 
 function valueNoise2D(w, h, seed) {
@@ -37,7 +38,11 @@ export class Stage {
     this.warmMists = [mistSprite(3, 900, 260, true), mistSprite(4, 900, 260, true)];
     this.paper = this.ctx.createPattern(paperTexture(), 'repeat');
     this.petals = makeParticles('petal', 70, 3);
-    this.snow = makeParticles('snow', 160, 4);
+    this.snow = makeParticles('snow', 220, 4);
+    this.leaves = makeParticles('leaf', 40, 8);
+    this.embers = makeParticles('ember', 60, 9);
+    this.flies = makeParticles('fly', 50, 10);
+    this.pointer = { x: 0, y: 0, tx: 0, ty: 0 };
     this.cur = 0; this.prev = -1; this.transT0 = -99; this.sceneT0 = 0;
     this.fadeOut = 0;
     this.t = 0;
@@ -55,6 +60,8 @@ export class Stage {
     };
     setTimeout(next, 60);
   }
+
+  setPointer(x, y) { this.pointer.tx = x; this.pointer.ty = y; }
 
   setScene(i) {
     if (i === this.cur) return;
@@ -75,7 +82,10 @@ export class Stage {
     g.addColorStop(0, sc.bg[0]); g.addColorStop(1, sc.bg[1]);
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 
-    const camX = Math.sin(t * 0.045) * 24, z = 1.07 + 0.02 * Math.sin(t * 0.031);
+    const P = this.pointer;
+    // câmera: deriva lenta + aproximação contínua (Ken Burns) + parallax do mouse
+    const camX = Math.sin(t * 0.06) * 34 + P.x * 46, camY = Math.sin(t * 0.045) * 8 + P.y * 16;
+    const z = 1.08 + 0.1 * ease(st / 26) + 0.015 * Math.sin(t * 0.05);
     if (sc.sun) {
       const { x, y, r, color } = sc.sun;
       const glow = ctx.createRadialGradient(x, y, r * 0.5, x, y, r * (sc.warm ? 14 : 5));
@@ -107,7 +117,10 @@ export class Stage {
         const s = h.s * (1 - (h.shrink || 0) * u);
         const a = Math.min(1, u * 8, (1 - u) * 8);
         ctx.globalAlpha = Math.max(0, a);
-        horse(ctx, x + camX * 0.5, y, s, st * 9 + (h.lag || 0) * 3, h.dir, 0.9, { rider: h.rider });
+        const hx = x + camX * 0.5, ph = st * 9 + (h.lag || 0) * 3;
+        if (h.dust) drawDust(ctx, hx, y, s * 2, h.dir, st + (h.lag || 0));
+        horse(ctx, hx, y, s, ph, h.dir, 0.9, { rider: h.rider });
+        if (h.banner) banner(ctx, hx + 4 * s * h.dir, y - 50 * s + Math.sin(ph * 2) * 1.5 * s, s, t);
         ctx.globalAlpha = 1;
       }
     };
@@ -116,13 +129,28 @@ export class Stage {
       if (L.c) {
         const d = L.depth, zl = 1 + (z - 1) * (0.5 + d);
         const dw = W * zl, dh = H * zl;
-        ctx.drawImage(L.c, (W - dw) / 2 + camX * d, (H - dh) * 0.7, dw, dh);
+        // a camada sobe da névoa ao entrar na cena, das distantes para as próximas
+        const k = ease((st - i * 0.18) / 2.4);
+        const dx = (W - dw) / 2 + camX * d, dy = (H - dh) * 0.7 + camY * d + (1 - k) * (40 + 80 * d);
+        ctx.globalAlpha = 0.15 + 0.85 * k;
+        if (L.sway) {
+          const sk = Math.sin(t * L.sway.speed + i) * L.sway.amp + Math.sin(t * L.sway.speed * 2.3) * L.sway.amp * 0.3;
+          const ax = dx + L.sway.x * zl, ay = dy + L.sway.y * zl;
+          ctx.save(); ctx.translate(ax, ay); ctx.transform(1, 0, sk, 1, 0, 0); ctx.translate(-ax, -ay);
+          ctx.drawImage(L.c, dx, dy, dw, dh);
+          ctx.restore();
+        } else ctx.drawImage(L.c, dx, dy, dw, dh);
+        ctx.globalAlpha = 1;
+        this.cam = { x: camX * d, y: camY * d, zl, dx, dy };
         if (i === 0 && !drewBirds) drawBirds();
       } else if (L.mist !== undefined) {
         drawMist(ctx, mists[L.mist], { ...L, phase: i * 300 }, t);
       } else if (L.reflect && sc.water) {
         this.reflect(ctx, sc.water.y, sc.bg[1], t);
       } else if (L.horses) drawHorses();
+      else if (L.actors) this.drawActors(ctx, sc, st, t);
+      else if (L.waves) this.withCam(ctx, () => drawWaves(ctx, t, L.waves));
+      else if (L.falls) for (const f of sc.falls || []) this.withCam(ctx, () => drawFall(ctx, f, t));
     });
     if (!drewHorses) drawHorses();
     if (sc.moon && sc.water) {
@@ -133,12 +161,66 @@ export class Stage {
         ctx.fillRect(x - w / 2 + Math.sin(t * 1.3 + j * 0.7) * 6, y, w, 2);
       }
     }
-    if (sc.petals) drawPetals(ctx, this.petals, t);
+    if (sc.petals) drawPetals(ctx, this.petals.slice(0, sc.petals), t, 1, sc.petalColor);
+    if (sc.petals2) drawPetals(ctx, this.petals.slice(-sc.petals2).map((p) => ({ ...p, x: p.x * 0.7 + 500 })), t * 0.9, 1, sc.petalColor2);
+    if (sc.leaves) drawLeaves(ctx, this.leaves, t, sc.leaves);
+    if (sc.embers) drawEmbers(ctx, this.embers, t, sc.embers);
+    if (sc.fireflies) drawFireflies(ctx, this.flies, t, sc.fireflies);
     if (sc.snow) drawSnow(ctx, this.snow, t);
     if (sc.seal) {
       const a = Math.max(0, Math.min(1, (st - 2.5) / 1.2));
       if (a > 0) seal(ctx, 1500, 760, 44, sc.seal, a * 0.95);
     }
+  }
+
+  // desenha no mesmo referencial da última camada (acompanha câmera e zoom)
+  withCam(ctx, fn) {
+    const c = this.cam || { zl: 1, dx: 0, dy: 0 };
+    ctx.save(); ctx.translate(c.dx, c.dy); ctx.scale(c.zl, c.zl); fn(); ctx.restore();
+  }
+
+  drawActors(ctx, sc, st, t) {
+    this.withCam(ctx, () => {
+      for (const a of sc.actors || []) {
+        const ph = a.ph || 0;
+        if (a.type === 'horse') {
+          // cavalo parado: crina e cauda ao vento, cabeça baixando para pastar
+          horse(ctx, a.x, a.y + Math.sin(t * 0.8 + ph) * 0.8, a.s, t * 1.6 + ph, a.dir, 0.9, { still: true });
+        } else if (a.type === 'figure') {
+          ctx.save(); ctx.translate(a.x, a.y); if (a.rot) ctx.rotate(a.rot);
+          if (a.work) ctx.rotate(0.25 + Math.max(0, Math.sin(t * 1.6 + ph)) * 0.45);
+          figure(ctx, 0, Math.sin(t * 1.1 + ph) * 0.8, a.s * (1 + Math.sin(t * 1.1 + ph) * 0.01), a.o);
+          ctx.restore();
+        } else if (a.type === 'ship') {
+          const u = Math.min(1, st / a.dur), [[x0, y0], [x1, y1]] = a.path;
+          const x = x0 + (x1 - x0) * u, y = y0 + (y1 - y0) * u + Math.sin(t * 1.1) * 3 * (a.rock || 0.4);
+          // fumaça da chaminé
+          for (let k = 0; k < 8; k++) {
+            const age = (t * 0.35 + k / 8) % 1, px = x - age * 140 * a.s, py = y - 56 * a.s - age * 70 * a.s, rad = (8 + age * 30) * a.s;
+            const g = ctx.createRadialGradient(px, py, 0, px, py, rad);
+            g.addColorStop(0, `rgba(110,105,98,${0.3 * (1 - age)})`); g.addColorStop(1, 'rgba(110,105,98,0)');
+            ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px, py, rad, 0, Math.PI * 2); ctx.fill();
+          }
+          ctx.save(); ctx.translate(x, y); ctx.rotate(Math.sin(t * 0.9) * 0.025 * (a.rock || 0.4) * 2); ship(ctx, 0, 0, a.s); ctx.restore();
+          ctx.strokeStyle = 'rgba(250,248,244,0.7)'; ctx.lineWidth = 1.5;
+          for (let k = 1; k < 5; k++) { ctx.beginPath(); ctx.moveTo(x - 80 * a.s - k * 22, y + 6 + k); ctx.lineTo(x - 80 * a.s - k * 22 - 26, y + 7 + k * 1.4); ctx.stroke(); }
+        } else if (a.type === 'train') {
+          const u = (st / a.dur) % 1, [[x0, y0], [x1, y1]] = a.path;
+          const x = x0 + (x1 - x0) * u, y = y0 + (y1 - y0) * u;
+          ctx.globalAlpha = Math.min(1, u * 8, (1 - u) * 8);
+          drawTrain(ctx, x, y, a.s, t, Math.atan2(y0 - y1, x0 - x1));
+          ctx.globalAlpha = 1;
+        } else if (a.type === 'lanterns') {
+          drawLanterns(ctx, a.a, a.b, a.n, t + (a.n || 0), a.sag);
+        } else if (a.type === 'walker') {
+          const u = ((st + (a.ph || 0)) / a.dur) % 1, [[x0, y0], [x1, y1]] = a.path;
+          const x = x0 + (x1 - x0) * u, y = y0 + (y1 - y0) * u - Math.abs(Math.sin(t * 6 + (a.ph || 0))) * 1.5;
+          ctx.globalAlpha = Math.min(1, u * 8, (1 - u) * 8);
+          ctx.save(); ctx.translate(x, y); ctx.scale(x1 < x0 ? -1 : 1, 1); figure(ctx, 0, 0, a.s, { hat: true, ...(a.o || {}) }); ctx.restore();
+          ctx.globalAlpha = 1;
+        }
+      }
+    });
   }
 
   reflect(ctx, wy, tint, t) {
@@ -175,6 +257,8 @@ export class Stage {
   }
 
   render(t) {
+    const P = this.pointer;
+    P.x += (P.tx - P.x) * 0.04; P.y += (P.ty - P.y) * 0.04;
     this.t = t;
     this.resize();
     const fa = this.frameA;
@@ -196,10 +280,14 @@ export class Stage {
       fb.getContext('2d').drawImage(this.tmp, 0, 0);
       out = fb;
     }
+    // tela cheia: recorta a pintura como "cover"; no retrato a câmera percorre o rolo
     const c = this.ctx, cw = this.el.width, ch = this.el.height;
-    c.drawImage(out, 0, 0, cw, ch);
-    c.save(); c.scale(cw / W, ch / H);
-    c.fillStyle = this.paper; c.fillRect(0, 0, W, H);
+    const sc = Math.max(cw / W, ch / H), vw = cw / sc, vh = ch / sc;
+    const pan = vw < W * 0.75 ? 0.5 + 0.5 * Math.sin(t * 0.07) : 0.5 + P.x * 0.1;
+    const sx = (W - vw) * Math.max(0, Math.min(1, pan)), sy = (H - vh) * 0.55;
+    c.drawImage(out, sx, sy, vw, vh, 0, 0, cw, ch);
+    c.save(); c.scale(sc, sc);
+    c.fillStyle = this.paper; c.fillRect(0, 0, vw, vh);
     c.restore();
     if (this.fadeOut > 0) {
       c.fillStyle = `rgba(239,235,227,${this.fadeOut})`; c.fillRect(0, 0, cw, ch);

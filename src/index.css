@@ -167,20 +167,26 @@ em { font-style: italic; color: var(--amber); }
   to { opacity: 1; filter: blur(0); transform: none; }
 }
 
-/* ---------- pintura ---------- */
+/* ---------- pintura em tela cheia ---------- */
 .painting {
-  margin: 0; min-height: 0; min-width: 0; overflow: hidden;
-  display: flex; align-items: center; justify-content: center;
-  padding: 0 clamp(0px, 3vw, 48px);
+  position: fixed; inset: 0; margin: 0; z-index: 0;
 }
-.painting canvas {
-  display: block;
-  /* bordas esfumadas, como a moldura do vídeo */
-  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 2.5%, #000 97.5%, transparent 100%), linear-gradient(180deg, transparent 0, #000 4%, #000 96%, transparent 100%);
-  -webkit-mask-composite: source-in;
-  mask-image: linear-gradient(90deg, transparent 0, #000 2.5%, #000 97.5%, transparent 100%), linear-gradient(180deg, transparent 0, #000 4%, #000 96%, transparent 100%);
-  mask-composite: intersect;
+.painting canvas { display: block; width: 100%; height: 100%; }
+.spacer { min-height: 0; }
+
+/* véus de papel que deixam o texto legível por cima da pintura */
+.viewer::before, .viewer::after {
+  content: ''; position: fixed; left: 0; right: 0; pointer-events: none; z-index: -1;
 }
+.viewer::before {
+  top: 0; height: 62vh;
+  background: linear-gradient(180deg, rgba(239, 235, 227, 0.92) 0%, rgba(239, 235, 227, 0.78) 45%, rgba(239, 235, 227, 0) 100%);
+}
+.viewer::after {
+  bottom: 0; height: 26vh;
+  background: linear-gradient(0deg, rgba(239, 235, 227, 0.9) 0%, rgba(239, 235, 227, 0) 100%);
+}
+.text h1, .text .body, .text .eyebrow { text-shadow: 0 0 18px rgba(239, 235, 227, 0.9), 0 0 2px rgba(239, 235, 227, 0.8); }
 
 /* ---------- legenda e rodapé ---------- */
 .meta { padding: clamp(10px, 2vh, 20px) var(--gutter) clamp(14px, 3vh, 30px); max-width: 1280px; width: 100%; margin: 0 auto; }
@@ -210,24 +216,23 @@ em { font-style: italic; color: var(--amber); }
 .dots button:hover { color: var(--ink); }
 .dots button.on { color: var(--paper); background: var(--teal); }
 
-/* ---------- telas largas: texto à esquerda, pintura à direita ---------- */
+/* ---------- telas largas: texto à esquerda, por cima da pintura ---------- */
 @media (min-width: 1100px) and (min-aspect-ratio: 4/3) {
-  .viewer {
-    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
-    grid-template-rows: auto minmax(0, 1fr) auto;
+  .viewer { grid-template-rows: auto minmax(0, 1fr) auto; }
+  .text { grid-row: 2; justify-content: center; min-height: 0; max-width: none; margin: 0; width: min(46vw, 700px); padding-right: 0; }
+  .spacer { display: none; }
+  .viewer::before {
+    top: 0; bottom: 0; height: auto; right: auto; width: 54vw;
+    background: radial-gradient(120% 70% at 0% 50%, rgba(239, 235, 227, 0.86) 0%, rgba(239, 235, 227, 0.55) 45%, rgba(239, 235, 227, 0) 80%);
   }
-  .topbar { grid-column: 1 / -1; }
-  .text { grid-column: 1; grid-row: 2; justify-content: center; min-height: 0; padding-right: 24px; }
-  .painting { grid-column: 2; grid-row: 2; padding: 0 clamp(64px, 6vw, 110px) 0 0; }
-  .meta { grid-column: 1 / -1; grid-row: 3; max-width: none; }
   h1 { font-size: clamp(40px, 3.9vw, 68px); }
   h1.cover { font-size: clamp(56px, 5.6vw, 96px); }
   .body { font-size: clamp(18px, 1.5vw, 22px); }
+  .meta { max-width: none; }
 }
 
 /* ---------- celular: como o vídeo vertical ---------- */
 @media (max-width: 760px) {
-  .painting { padding: 0; }
   .dots { display: none; }
   .text { min-height: 38vh; }
   .controls .ctl { padding: 6px 4px; font-size: 10px; }
