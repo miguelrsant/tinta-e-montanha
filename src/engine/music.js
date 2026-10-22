@@ -102,7 +102,12 @@ export class Music {
     this.analyser = ac.createAnalyser(); this.analyser.fftSize = 256;
     const limiter = ac.createDynamicsCompressor();
     limiter.threshold.value = -3; limiter.knee.value = 0; limiter.ratio.value = 20; limiter.attack.value = 0.002; limiter.release.value = 0.1;
-    this.master.connect(comp); comp.connect(limiter); limiter.connect(this.analyser); this.analyser.connect(ac.destination);
+    // saturação suave no fim: nunca chega a distorcer (clipping digital)
+    const soft = ac.createWaveShaper();
+    const curve = new Float32Array(2048);
+    for (let i = 0; i < curve.length; i++) { const x = (i / (curve.length - 1)) * 2 - 1, ax = Math.abs(x); curve[i] = ax < 0.7 ? x : Math.sign(x) * (0.7 + 0.3 * Math.tanh((ax - 0.7) / 0.3)); }
+    soft.curve = curve; soft.oversample = '2x';
+    this.master.connect(comp); comp.connect(limiter); limiter.connect(soft); soft.connect(this.analyser); this.analyser.connect(ac.destination);
     this.reverb = ac.createConvolver(); this.reverb.buffer = impulse(ac);
     const wet = ac.createGain(); wet.gain.value = 0.55;
     this.reverb.connect(wet); wet.connect(this.master);
@@ -203,7 +208,7 @@ export class Music {
 
   applyArrangement(now, at) {
     const c = this.cfg, t = at ?? this.ac.currentTime, tc = now ? 0.05 : 1.2;
-    this.fluteBus.gain.setTargetAtTime(c.lead === 'flute' ? 0.55 : 0, t, tc);
+    this.fluteBus.gain.setTargetAtTime(c.lead === 'flute' ? 0.15 : 0, t, tc);
     this.padBus.gain.setTargetAtTime(c.pad ? 0.16 : 0, t, tc * 1.5);
     this.drumBus.gain.setTargetAtTime(c.drums ? 0.6 : 0, t, tc);
   }
@@ -277,7 +282,9 @@ export class Music {
       for (let k = 0; k < Math.floor(dur * 0.6 / 0.07); k++) freq.offset.setValueAtTime(k % 2 ? f : up, t + 0.1 + k * 0.07);
       freq.offset.setValueAtTime(f, t + 0.1 + dur * 0.6);
     }
-    amp.gain.setTargetAtTime(last ? 0 : 0.7, t + dur * 0.86, last ? 0.12 : 0.05);
+    // cada nota termina: a flauta nunca fica presa num som contínuo
+    amp.gain.setTargetAtTime(0.7, t + dur * 0.8, 0.05);
+    amp.gain.setTargetAtTime(0, t + dur - 0.03, last ? 0.12 : 0.025);
   }
 
   makePad() {
@@ -339,7 +346,7 @@ export class Music {
     if (until === undefined && this.next < now - 0.05) {
       while (this.next < now + 0.05) this.advance();
     }
-    const ahead = until ?? now + (document.hidden ? 1.5 : 0.5);
+    const ahead = until ?? now + (document.hidden ? 1.5 : 0.8);
     while (this.next < ahead) {
       this.tick(this.next);
       this.advance();

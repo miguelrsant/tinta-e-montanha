@@ -33,6 +33,9 @@ function Equalizer({ music, on }) {
   );
 }
 
+// distância de rolagem entre uma tela e a próxima, em alturas de tela
+const STEP = 1.6;
+
 export default function App() {
   const canvasRef = useRef(null);
   const stageRef = useRef(null);
@@ -70,7 +73,7 @@ export default function App() {
   // Rolagem → capítulo
   useEffect(() => {
     const onScroll = () => {
-      const i = Math.round(window.scrollY / window.innerHeight);
+      const i = Math.round(window.scrollY / (window.innerHeight * STEP));
       setChapter(Math.max(0, Math.min(STORY.length - 1, i)));
     };
     window.addEventListener('scroll', onScroll, { passive: true });
@@ -85,7 +88,7 @@ export default function App() {
 
   const goTo = useCallback((i) => {
     const n = Math.max(0, Math.min(STORY.length - 1, i));
-    window.scrollTo({ top: n * window.innerHeight, behavior: 'smooth' });
+    window.scrollTo({ top: n * window.innerHeight * STEP, behavior: 'smooth' });
   }, []);
 
   // Modo filme: avança um capítulo a cada 4 compassos da música
@@ -130,7 +133,7 @@ export default function App() {
 
   return (
     <>
-      <div className="scroll-track" style={{ height: `${STORY.length * 100}vh` }} />
+      <div className="scroll-track" style={{ height: `${(STORY.length - 1) * STEP * 100 + 100}vh` }} />
       <figure className="painting">
         <canvas ref={canvasRef} role="img" aria-label="Pintura a tinta animada da cena atual" />
       </figure>
