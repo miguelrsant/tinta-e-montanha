@@ -440,21 +440,77 @@ function blossom(ctx, r, x, y, s, n = 160, rgb = [236, 170, 180], a = 0.9) {
     ctx.beginPath(); ctx.arc(x + Math.cos(ang) * d * 1.4, y + Math.sin(ang) * d * 0.75, R(r, 1.6, 4.8), 0, Math.PI * 2); ctx.fill();
   }
 }
+// Flor de cerejeira: cinco pétalas com entalhe, miolo escuro
+function sakuraFlower(ctx, x, y, rad, rot, a = 1) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+  for (let i = 0; i < 5; i++) {
+    ctx.rotate((Math.PI * 2) / 5);
+    ctx.fillStyle = `rgba(${246 - i * 2},${196 - i * 4},${206 - i * 3},${0.92 * a})`;
+    ctx.beginPath(); ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(rad * 0.9, -rad * 0.55, rad * 0.95, -rad * 0.08);
+    ctx.lineTo(rad * 0.78, 0);
+    ctx.lineTo(rad * 0.95, rad * 0.08);
+    ctx.quadraticCurveTo(rad * 0.9, rad * 0.55, 0, 0);
+    ctx.fill();
+  }
+  ctx.fillStyle = `rgba(196,70,96,${0.9 * a})`;
+  ctx.beginPath(); ctx.arc(0, 0, rad * 0.22, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
 // Árvore florida: tronco de pincel + copas de flores
 function floweringTree(ctx, r, x, y, h, rgb, o = {}) {
   const lean = o.lean ?? R(r, -0.2, 0.2);
+  const sakura = o.kind === 'sakura';
   ctx.strokeStyle = ink(0.88, 22); ctx.lineCap = 'round';
   const tops = [];
   const branch = (bx, by, ang, len, w, depth) => {
-    const ex = bx + Math.cos(ang) * len, ey = by + Math.sin(ang) * len;
-    ctx.lineWidth = w;
-    ctx.beginPath(); ctx.moveTo(bx, by);
-    ctx.quadraticCurveTo(bx + Math.cos(ang + 0.3) * len * 0.5, by + Math.sin(ang + 0.3) * len * 0.5, ex, ey); ctx.stroke();
+    // galho torto em dois segmentos, como pincel seco
+    const mx = bx + Math.cos(ang + R(r, -0.25, 0.25)) * len * 0.5, my = by + Math.sin(ang + R(r, -0.25, 0.25)) * len * 0.5;
+    const ex = mx + Math.cos(ang) * len * 0.5, ey = my + Math.sin(ang) * len * 0.5;
+    ctx.strokeStyle = ink(0.9, 22);
+    ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(mx, my); ctx.stroke();
+    ctx.lineWidth = w * 0.8; ctx.beginPath(); ctx.moveTo(mx, my); ctx.lineTo(ex, ey); ctx.stroke();
+    if (w > 4) { ctx.strokeStyle = 'rgba(235,230,220,0.25)'; ctx.lineWidth = w * 0.18; ctx.beginPath(); ctx.moveTo(bx + w * 0.2, by); ctx.lineTo(mx + w * 0.15, my); ctx.stroke(); }
     if (depth <= 0) { tops.push([ex, ey]); return; }
+    if (sakura && depth <= 2) tops.push([mx, my]);
     branch(ex, ey, ang - R(r, 0.3, 0.7), len * R(r, 0.6, 0.8), w * 0.65, depth - 1);
     branch(ex, ey, ang + R(r, 0.3, 0.7), len * R(r, 0.6, 0.8), w * 0.65, depth - 1);
   };
   branch(x, y, -Math.PI / 2 + lean, h * 0.42, h * 0.05, o.depth ?? 3);
+  const cs = h * 0.13;
+  if (sakura) {
+    // 1. aguada rosada difusa que forma a copa
+    for (const [tx, ty] of tops) {
+      for (let k = 0; k < 3; k++) {
+        const gx = tx + R(r, -cs, cs) * 0.6, gy = ty + R(r, -cs, cs) * 0.4, gr = cs * R(r, 0.9, 1.5);
+        const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, gr);
+        g.addColorStop(0, 'rgba(240,184,196,0.42)'); g.addColorStop(1, 'rgba(240,184,196,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(gx, gy, gr * 1.3, gr * 0.85, 0, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    // 2. folhinhas verde-escuras novas, em pares, nas bordas da copa
+    for (const [tx, ty] of tops) {
+      for (let i = 0; i < (o.leaves ?? 7); i++) {
+        const an = R(r, 0, Math.PI * 2), d = cs * R(r, 0.6, 1.1);
+        const lx = tx + Math.cos(an) * d * 1.3, ly = ty + Math.sin(an) * d * 0.7, base = an + R(r, -0.4, 0.4);
+        const L = R(r, 7, 12) * (h / 400 + 0.6);
+        leaf(ctx, lx, ly, base - 0.35, L, L * 0.38, R(r, 0.7, 0.95));
+        leaf(ctx, lx, ly, base + 0.35, L * 0.85, L * 0.34, R(r, 0.7, 0.95));
+      }
+    }
+    // 3. flores de cinco pétalas, mais densas no centro dos cachos
+    for (const [tx, ty] of tops) {
+      const n = o.n ?? 40;
+      for (let i = 0; i < n; i++) {
+        const an = R(r, 0, Math.PI * 2), d = Math.pow(r(), 0.8) * cs;
+        sakuraFlower(ctx, tx + Math.cos(an) * d * 1.35, ty + Math.sin(an) * d * 0.8, R(r, 2.6, 4.6) * (h / 400 + 0.55), R(r, 0, 6.3), R(r, 0.75, 1));
+      }
+      ctx.fillStyle = 'rgba(160,50,70,0.8)';
+      for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.arc(tx + R(r, -cs, cs), ty + R(r, -cs, cs) * 0.6, R(r, 1, 2), 0, Math.PI * 2); ctx.fill(); }
+    }
+    return;
+  }
   for (const [tx, ty] of tops) {
     for (let i = 0; i < (o.leaves ?? 26); i++) {
       const an = R(r, 0, Math.PI * 2), d = Math.pow(r(), 0.7) * h * 0.15;

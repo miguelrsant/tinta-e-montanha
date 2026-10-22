@@ -6,7 +6,7 @@ import { mistSprite, drawMist, paperTexture, drawFlock, horse, figure, makeParti
 
 const { W, H, canvas, rng, ship } = Ink;
 const ease = (x) => 1 - Math.pow(1 - Math.max(0, Math.min(1, x)), 3);
-const TRANSITION = 2.4;
+const TRANSITION = 3.2;
 
 function valueNoise2D(w, h, seed) {
   const r = rng(seed), out = new Float32Array(w * h);
@@ -15,7 +15,7 @@ function valueNoise2D(w, h, seed) {
     const gw = cells + 2, gh = Math.ceil(cells * h / w) + 2;
     const g = Array.from({ length: gw * gh }, r);
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      const fx = x / w * cells, fy = y / h * cells * (w / w), ix = Math.floor(fx), iy = Math.floor(fy);
+      const fx = x / w * cells, fy = y / h * cells * (h / w), ix = Math.floor(fx), iy = Math.floor(fy);
       const tx = fx - ix, ty = fy - iy, sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty);
       const a = g[iy * gw + ix], b = g[iy * gw + ix + 1], c = g[(iy + 1) * gw + ix], d = g[(iy + 1) * gw + ix + 1];
       out[y * w + x] += amp * ((a + (b - a) * sx) * (1 - sy) + (c + (d - c) * sx) * sy);
@@ -33,6 +33,9 @@ export class Stage {
     this.mw = 192; this.mh = 108;
     this.mask = canvas(this.mw, this.mh);
     this.maskNoise = valueNoise2D(this.mw, this.mh, 5);
+    let lo = Infinity, hi = -Infinity;
+    for (const v of this.maskNoise) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    for (let i = 0; i < this.maskNoise.length; i++) this.maskNoise[i] = (this.maskNoise[i] - lo) / (hi - lo || 1);
     this.maskImg = this.mask.getContext('2d').createImageData(this.mw, this.mh);
     this.mists = [mistSprite(1), mistSprite(2)];
     this.warmMists = [mistSprite(3, 900, 260, true), mistSprite(4, 900, 260, true)];
@@ -248,10 +251,13 @@ export class Stage {
   }
 
   updateMask(p) {
-    const d = this.maskImg.data, n = this.maskNoise, k = p * 1.35 - 0.2;
+    // cada ponto do papel recebe a tinta nova numa rampa suave, em momentos
+    // diferentes conforme o ruído; um leve cross-fade global evita qualquer corte
+    const d = this.maskImg.data, n = this.maskNoise;
     for (let i = 0; i < n.length; i++) {
-      const a = Math.max(0, Math.min(1, (k - n[i] * 0.85 + 0.12) / 0.14));
-      d[i * 4 + 3] = a * 255;
+      const local = Math.max(0, Math.min(1, (p - n[i] * 0.55) / 0.45));
+      const a = local * local * (3 - 2 * local);
+      d[i * 4 + 3] = (a * 0.78 + p * 0.22) * 255;
     }
     this.mask.getContext('2d').putImageData(this.maskImg, 0, 0);
   }

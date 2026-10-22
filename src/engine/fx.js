@@ -156,8 +156,13 @@ export function drawPetals(ctx, ps, t, a = 1, rgb = [168, 44, 44]) {
     const y = (p.y + t * 28 * p.v) % (H + 40) - 20;
     const x = (p.x + Math.sin(t * p.sp + p.ph) * 30 + t * 14 * p.v) % (W + 40) - 20;
     ctx.save(); ctx.translate(x, y); ctx.rotate(t * p.sp + p.ph);
-    ctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${0.8 * a})`;
-    ctx.beginPath(); ctx.ellipse(0, 0, 4.5 * p.s, 2.2 * p.s, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${0.85 * a})`;
+    // pétala com entalhe na ponta, girando em 3D (escala oscilante)
+    ctx.scale(1, 0.35 + 0.65 * Math.abs(Math.sin(t * p.sp * 1.7 + p.ph)));
+    const L = 6 * p.s, Wd = 3.4 * p.s;
+    ctx.beginPath(); ctx.moveTo(-L * 0.5, 0);
+    ctx.quadraticCurveTo(0, -Wd, L * 0.5, -Wd * 0.35); ctx.lineTo(L * 0.32, 0); ctx.lineTo(L * 0.5, Wd * 0.35);
+    ctx.quadraticCurveTo(0, Wd, -L * 0.5, 0); ctx.fill();
     ctx.restore();
   }
 }

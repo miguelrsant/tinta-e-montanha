@@ -77,20 +77,20 @@ export const SCENES = [
       const L2 = layer(1), c = L2.ctx;
       const hill = mountain(c, r, { x0: 1180, x1: 1700, base: 720, peaks: [{ x: 1420, h: 360, w: 170, k: 3 }], tone: 32, alpha: 0.85, texture: 1, dots: 0.4, foot: 10 });
       pavilion(c, 1420, hill.yAt(1420) + 30, 1.05);
-      floweringTree(c, r, 1330, hill.yAt(1330) + 40, 140, SAKURA);
-      floweringTree(c, r, 1520, hill.yAt(1520) + 30, 120, SAKURA);
+      floweringTree(c, r, 1330, hill.yAt(1330) + 40, 150, SAKURA, { kind: 'sakura', n: 30 });
+      floweringTree(c, r, 1520, hill.yAt(1520) + 30, 130, SAKURA, { kind: 'sakura', n: 26 });
       // cais de madeira
       c.fillStyle = ink(0.85); c.fillRect(150, 744, 420, 7);
       for (let i = 0; i < 12; i++) c.fillRect(160 + i * 36, 750, 4, 28);
       waterLines(c, r, 712, 880, 0.1);
       const L3 = layer(1), f = L3.ctx;
-      rocks(f, r, 80, 900, 300, 110, 0.9);
-      floweringTree(f, r, 120, 860, 560, SAKURA, { lean: 0.25, depth: 4, n: 80 });
+      rocks(f, r, 1540, 905, 320, 110, 0.9);
+      floweringTree(f, r, 1560, 890, 580, SAKURA, { kind: 'sakura', lean: -0.32, depth: 4, n: 34 });
       return [
         { c: L0.c, depth: 0.15 }, { mist: 0, y: 560, h: 240, alpha: 0.85, speed: 7 },
         { c: L1.c, depth: 0.4 }, { mist: 1, y: 700, h: 120, alpha: 0.5, speed: 12 },
         { c: L2.c, depth: 0.6 }, { actors: true }, { reflect: true },
-        { c: L3.c, depth: 1, front: true, sway: { x: 120, y: 860, amp: 0.025, speed: 0.8 } },
+        { c: L3.c, depth: 1, front: true, sway: { x: 1560, y: 890, amp: 0.025, speed: 0.8 } },
       ];
     },
   },
@@ -245,7 +245,7 @@ export const SCENES = [
       waterLines(c, r, 620, 880, 0.12);
       const L2 = layer(1), f = L2.ctx;
       mountain(f, r, { x0: -80, x1: 300, base: 900, peaks: [{ x: 40, h: 420, w: 160, k: 3 }], tone: 30, alpha: 0.9, texture: 1, dots: 0.4, foot: 0 });
-      floweringTree(f, r, 1500, 900, 380, SAKURA, { lean: -0.2 });
+      floweringTree(f, r, 1500, 900, 380, SAKURA, { kind: 'sakura', lean: -0.2, n: 30 });
       return [
         { c: L0.c, depth: 0.12 }, { mist: 0, y: 470, h: 260, alpha: 0.9, speed: 5 }, { mist: 1, y: 540, h: 160, alpha: 0.8, speed: 8 },
         { c: L1.c, depth: 0.4 }, { reflect: true }, { actors: true },
@@ -270,7 +270,7 @@ export const SCENES = [
       this.falls = [{ x: 930, top: fy, w: 34, bottom: 820 }];
       for (let i = 0; i < 10; i++) tinyTree(c, r, R(r, 550, 1100), cl.yAt(R(r, 550, 1100)) + R(r, 20, 160), R(r, 16, 30));
       const P = layer(1);
-      floweringTree(P.ctx, r, 200, 900, 600, SAKURA, { depth: 4, n: 90, lean: 0.2 });
+      floweringTree(P.ctx, r, 200, 900, 600, SAKURA, { kind: 'sakura', depth: 4, n: 34, lean: 0.2 });
       floweringTree(P.ctx, r, 1420, 900, 560, IPE, { depth: 4, n: 90, lean: -0.2 });
       return [
         { c: L0.c, depth: 0.1 }, { mist: 0, y: 470, h: 220, alpha: 0.95, speed: 5 },

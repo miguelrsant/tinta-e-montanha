@@ -136,20 +136,20 @@ export class Music {
     this.master.gain.setTargetAtTime(m ? 0 : 0.55, this.ac.currentTime, 0.3);
   }
 
-  setChapter(i) {
+  setChapter(i, at) {
     if (i === this.chapter) return;
     this.chapter = i;
     if (!this.ready) return;
-    this.applyArrangement();
-    const t = this.ac.currentTime + 0.05;
+    const t = at ?? this.ac.currentTime + 0.05;
+    this.applyArrangement(false, t);
     this.gong(t, 0.5);
     this.gliss(t + 0.1, i % 2 ? -1 : 1, 0.45);
   }
 
   get cfg() { return ARRANGEMENTS[Math.min(this.chapter, ARRANGEMENTS.length - 1)]; }
 
-  applyArrangement(now) {
-    const c = this.cfg, t = this.ac.currentTime, tc = now ? 0.05 : 1.2;
+  applyArrangement(now, at) {
+    const c = this.cfg, t = at ?? this.ac.currentTime, tc = now ? 0.05 : 1.2;
     this.fluteBus.gain.setTargetAtTime(c.lead === 'flute' ? 0.55 : 0, t, tc);
     this.padBus.gain.setTargetAtTime(c.pad ? 0.16 : 0, t, tc * 1.5);
     this.drumBus.gain.setTargetAtTime(c.drums ? 0.6 : 0, t, tc);
@@ -160,6 +160,7 @@ export class Music {
   /* ---------- instrumentos ---------- */
   pluck(t, midi, vel = 0.5, o = {}) {
     t = Math.max(t, this.ac.currentTime);
+    if (!Number.isFinite(t)) return;
     if (!this.plucks.has(midi)) this.plucks.set(midi, pluckBuffer(this.ac, mtof(midi)));
     const { buf, rate } = this.plucks.get(midi);
     const src = this.ac.createBufferSource(); src.buffer = buf;
