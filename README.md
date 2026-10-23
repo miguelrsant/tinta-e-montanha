@@ -1,12 +1,34 @@
+<div align="center">
+
+<a href="https://tinta-e-montanha.vercel.app"><img src="docs/capa.jpg" alt="Capa de Tinta & Montanha: o título As raízes que atravessaram o mar ao lado de uma pintura a tinta com montanhas, um pinheiro, o sol vermelho e o navio" width="100%"></a>
+
 # Tinta & Montanha
 
-**As raízes que atravessaram o mar**: a história real do Kasato Maru (笠戸丸), o navio que trouxe os primeiros imigrantes japoneses ao Brasil em 1908, pintada no estilo da pintura chinesa a tinta (*shan shui*). Tudo é gerado com código: não há nenhuma imagem nem arquivo de áudio no projeto.
+**A história real dos primeiros imigrantes japoneses no Brasil, pintada em tinta e contada em música.**
+
+<a href="https://tinta-e-montanha.vercel.app"><img src="https://img.shields.io/badge/%E2%96%B6%20Ver%20projeto-2D6356?style=for-the-badge" alt="Ver projeto" height="36"></a>
+
+<img src="https://img.shields.io/badge/React-20232A?style=flat-square&logo=react&logoColor=61DAFB" alt="React">
+<img src="https://img.shields.io/badge/Canvas_2D-141210?style=flat-square&logo=html5&logoColor=white" alt="Canvas 2D">
+<img src="https://img.shields.io/badge/Web_Audio-A8651E?style=flat-square" alt="Web Audio">
+<img src="https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white" alt="Vite">
+<img src="https://img.shields.io/badge/licen%C3%A7a-MIT-3DA639?style=flat-square" alt="Licença MIT">
+
+</div>
+
+<br>
+
+**As raízes que atravessaram o mar**: a história real do Kasato Maru (笠戸丸), o navio que trouxe os primeiros imigrantes japoneses ao Brasil em 1908, pintada no estilo da pintura chinesa a tinta (*shan shui*). Tudo é gerado com código: o site não usa nenhuma imagem nem arquivo de áudio (os prints em `docs/` são só para este README).
 
 > Raiz não é onde a gente nasce. É o que a gente leva e o que a gente planta.
 
 ## A história
 
 Oito capítulos, cada um com a sua pintura animada e o seu arranjo musical: a partida de Kobe entre cerejeiras, os 52 dias de mar, a chegada a Santos e a subida da Serra do Mar de trem, o cafezal, a saudade sob as araucárias, o chá e os ipês do Vale do Ribeira, as lanternas da Liberdade e a lição final.
+
+<p align="center">
+  <img src="docs/santos.jpg" alt="Capítulo III, A chegada: o trem sobe a Serra do Mar entre montanhas e palmeiras pintadas a tinta" width="100%">
+</p>
 
 ## Como funciona
 
@@ -48,7 +70,7 @@ O som só começa depois de um clique (regra dos navegadores). Use **assistir co
 
 ## Publicação
 
-O workflow `.github/workflows/deploy.yml` publica no GitHub Pages a cada push na `main`. Para ativar, vá em **Settings → Pages** e escolha **GitHub Actions** como fonte.
+O site está no ar em **[tinta-e-montanha.vercel.app](https://tinta-e-montanha.vercel.app)**. Além disso, o workflow `.github/workflows/deploy.yml` publica no GitHub Pages a cada push na `main`. Para ativar, vá em **Settings → Pages** e escolha **GitHub Actions** como fonte.
 
 ## Créditos
 
@@ -58,3 +80,11 @@ O workflow `.github/workflows/deploy.yml` publica no GitHub Pages a cada push na
 ## Licença
 
 [MIT](LICENSE)
+
+---
+
+<div align="center">
+
+Feito por **Miguel Angelo** · [miguelrsant.com.br](https://miguelrsant.com.br) · [LinkedIn](https://www.linkedin.com/in/miguelrsant) · [GitHub](https://github.com/miguelrsant)
+
+</div>
