@@ -70,7 +70,7 @@ O som só começa depois de um clique (regra dos navegadores). Use **assistir co
 
 ## Publicação
 
-O site está no ar em **[tinta-e-montanha.vercel.app](https://tinta-e-montanha.vercel.app)**. Além disso, o workflow `.github/workflows/deploy.yml` publica no GitHub Pages a cada push na `main`. Para ativar, vá em **Settings → Pages** e escolha **GitHub Actions** como fonte.
+O site está no ar em **[tinta-e-montanha.vercel.app](https://tinta-e-montanha.vercel.app)**. A Vercel publica de novo a cada push na `main`.
 
 ## Créditos
 

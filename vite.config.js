@@ -1,7 +1,7 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
-// base relativo: funciona no GitHub Pages (/tinta-e-montanha/) e em qualquer subpasta
+// base relativo: o build funciona na raiz do domínio ou em qualquer subpasta
 export default defineConfig({
   base: './',
   plugins: [react()],
